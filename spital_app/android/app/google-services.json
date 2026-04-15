@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "509650773585",
+    "project_id": "upu-app-c4f75",
+    "storage_bucket": "upu-app-c4f75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:509650773585:android:7e69f1cd48bbdbffaeba70",
+        "android_client_info": {
+          "package_name": "com.example.spital_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIWJA9UKy81kkVoGyOwkBhmy312UXzLeo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
