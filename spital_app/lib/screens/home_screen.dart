@@ -41,28 +41,29 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
+      withData: true,
     );
 
     if (result == null || result.files.isEmpty) return;
 
-    final picked = result.files.first;
-    if (picked.path == null) return;
+    final file = result.files.first;
+    final bytes = file.bytes;
+
+    if (bytes == null) return;
 
     setState(() => _uploading = true);
 
-    final file = File(picked.path!);
-    final name = picked.name;
-
-    final response = await _docService.uploadDocument(file, name);
+    final response = await _docService.uploadDocument(bytes, file.name);
 
     if (!mounted) return;
+
     setState(() => _uploading = false);
 
     if (response['success'] == true) {
-      _showSnack('Document încărcat cu succes!');
+      _showSnack("Upload reușit");
       await _fetchDocuments();
     } else {
-      _showSnack(response['message'] ?? 'Upload eșuat', isError: true);
+      _showSnack(response['message'], isError: true);
     }
   }
 

@@ -21,14 +21,12 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'Roboto',
       ),
       home: const AuthGate(),
     );
   }
 }
 
-/// Decides whether to show Login or Home based on stored token
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -37,15 +35,13 @@ class AuthGate extends StatelessWidget {
     return FutureBuilder<bool>(
       future: AuthService().isLoggedIn(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.data == true) {
-          return const HomeScreen();
-        }
-        return const LoginScreen();
+
+        return snapshot.data == true ? const HomeScreen() : const LoginScreen();
       },
     );
   }

@@ -57,7 +57,7 @@ class DocumentController extends Controller
             'document' => [
                 'id'         => $document->id,
                 'name'       => $document->name,
-                'url'        => Storage::url($path),
+                'url'        => url('storage/' . $path),
                 'created_at' => $document->created_at->toDateTimeString(),
             ],
         ], 201);

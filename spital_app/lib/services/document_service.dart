@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'auth_service.dart';
@@ -35,8 +36,10 @@ class DocumentService {
     return [];
   }
 
-  /// Upload a PDF file
-  Future<Map<String, dynamic>> uploadDocument(File file, String name) async {
+  Future<Map<String, dynamic>> uploadDocument(
+    Uint8List bytes,
+    String name,
+  ) async {
     try {
       final token = await _auth.getToken();
       final uri = Uri.parse('$baseUrl/documents');
@@ -45,10 +48,10 @@ class DocumentService {
         ..headers['Authorization'] = 'Bearer $token'
         ..headers['Accept'] = 'application/json'
         ..fields['name'] = name
-        ..files.add(await http.MultipartFile.fromPath(
+        ..files.add(http.MultipartFile.fromBytes(
           'file',
-          file.path,
-          contentType: MediaType('application', 'pdf'),
+          bytes,
+          filename: name,
         ));
 
       final streamed = await request.send();
@@ -64,8 +67,7 @@ class DocumentService {
         'message': data['message'] ?? 'Upload eșuat',
       };
     } catch (e) {
-      print('uploadDocument error: $e');
-      return {'success': false, 'message': 'Eroare la upload'};
+      return {'success': false, 'message': e.toString()};
     }
   }
 
