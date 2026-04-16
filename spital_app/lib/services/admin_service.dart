@@ -1,161 +1,200 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/user_model.dart';
+import 'auth_service.dart';
 
-class AuthService {
-  // Android emulator  → 10.0.2.2
-  // Physical device   → your machine's LAN IP, e.g. 192.168.1.100
-  static const String baseUrl = "http://10.0.2.2:8000/api";
+/// Handles all admin API calls:
+///   - Hospital CRUD  (global_admin only)
+///   - User CRUD      (global_admin + hospital_admin)
+///   - Companion link / unlink
+class AdminService {
+  static const String _base = AuthService.baseUrl;
+  final AuthService _auth = AuthService();
 
-  static const String _tokenKey = 'auth_token';
-  static const String _userKey = 'auth_user';
-
-  final _storage = const FlutterSecureStorage();
-
-  // ── Token ──────────────────────────────────────────────────────────────────
-
-  Future<String?> getToken() => _storage.read(key: _tokenKey);
-
-  Future<bool> isLoggedIn() async {
-    final token = await getToken();
-    return token != null && token.isNotEmpty;
-  }
-
-  // ── Cached user ────────────────────────────────────────────────────────────
-
-  Future<UserModel?> getCachedUser() async {
-    final raw = await _storage.read(key: _userKey);
-    if (raw == null) return null;
-    try {
-      return UserModel.fromJson(json.decode(raw));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> _saveUser(Map<String, dynamic> userJson) async {
-    await _storage.write(key: _userKey, value: json.encode(userJson));
-  }
-
-  // ── Auth headers ───────────────────────────────────────────────────────────
-
-  Future<Map<String, String>> authHeaders() async {
-    final token = await getToken();
+  Future<Map<String, String>> _headers() async {
+    final token = await _auth.getToken();
     return {
       'Authorization': 'Bearer $token',
       'Accept': 'application/json',
+      'Content-Type': 'application/json',
     };
   }
 
-  // ── Login ──────────────────────────────────────────────────────────────────
+  // ── Hospitals ─────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<List<Map<String, dynamic>>> getHospitals() async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/login'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'email': email, 'password': password}),
+      final r = await http.get(
+        Uri.parse('$_base/hospitals'),
+        headers: await _headers(),
       );
-
-      final data = json.decode(response.body);
-
-      if (response.statusCode == 200) {
-        await _storage.write(key: _tokenKey, value: data['token']);
-        await _saveUser(data['user']);
-        return {'success': true, 'user': UserModel.fromJson(data['user'])};
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body);
+        return List<Map<String, dynamic>>.from(data['hospitals']);
       }
-
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Eroare la autentificare',
-      };
     } catch (e) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      print('getHospitals error: $e');
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> createHospital(
+      Map<String, dynamic> fields) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$_base/hospitals'),
+        headers: await _headers(),
+        body: json.encode(fields),
+      );
+      final data = json.decode(r.body);
+      if (r.statusCode == 201)
+        return {'success': true, 'hospital': data['hospital']};
+      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  // ── Register ───────────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> register({
-    required String name,
-    required String email,
-    required String password,
-    String? cnp,
-    String role = 'patient',
-  }) async {
+  Future<Map<String, dynamic>> updateHospital(
+      int id, Map<String, dynamic> fields) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/register'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-          'password_confirmation': password,
-          'role': role,
-          if (cnp != null && cnp.isNotEmpty) 'cnp_pacient': cnp,
-        }),
+      final r = await http.put(
+        Uri.parse('$_base/hospitals/$id'),
+        headers: await _headers(),
+        body: json.encode(fields),
       );
+      final data = json.decode(r.body);
+      if (r.statusCode == 200)
+        return {'success': true, 'hospital': data['hospital']};
+      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 
-      final data = json.decode(response.body);
+  Future<bool> deleteHospital(int id) async {
+    try {
+      final r = await http.delete(
+        Uri.parse('$_base/hospitals/$id'),
+        headers: await _headers(),
+      );
+      return r.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 
-      if (response.statusCode == 201) {
-        await _storage.write(key: _tokenKey, value: data['token']);
-        await _saveUser(data['user']);
-        return {'success': true, 'user': UserModel.fromJson(data['user'])};
+  // ── Users ─────────────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getUsers({String? role}) async {
+    try {
+      final uri = Uri.parse('$_base/users')
+          .replace(queryParameters: role != null ? {'role': role} : null);
+      final r = await http.get(uri, headers: await _headers());
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body);
+        return List<Map<String, dynamic>>.from(data['users']);
       }
+    } catch (e) {
+      print('getUsers error: $e');
+    }
+    return [];
+  }
 
-      String message = data['message'] ?? 'Eroare la înregistrare';
+  Future<Map<String, dynamic>> createUser(Map<String, dynamic> fields) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$_base/users'),
+        headers: await _headers(),
+        body: json.encode(fields),
+      );
+      final data = json.decode(r.body);
+      if (r.statusCode == 201) return {'success': true, 'user': data['user']};
+      String msg = data['message'] ?? 'Eroare';
       if (data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
-        message = (errors.values.first as List).first.toString();
+        msg = (errors.values.first as List).first.toString();
       }
-      return {'success': false, 'message': message};
+      return {'success': false, 'message': msg};
     } catch (e) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  // ── Fetch fresh /me ────────────────────────────────────────────────────────
-
-  Future<UserModel?> fetchMe() async {
+  Future<Map<String, dynamic>> updateUser(
+      int id, Map<String, dynamic> fields) async {
     try {
-      final headers = await authHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/me'),
-        headers: headers,
+      final r = await http.put(
+        Uri.parse('$_base/users/$id'),
+        headers: await _headers(),
+        body: json.encode(fields),
       );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        await _saveUser(data);
-        return UserModel.fromJson(data);
-      }
-    } catch (_) {}
-    return null;
+      final data = json.decode(r.body);
+      if (r.statusCode == 200) return {'success': true, 'user': data['user']};
+      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
   }
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
-
-  Future<void> logout() async {
+  Future<bool> deleteUser(int id) async {
     try {
-      final token = await getToken();
-      if (token != null) {
-        await http.post(
-          Uri.parse('$baseUrl/logout'),
-          headers: await authHeaders(),
-        );
-      }
+      final r = await http.delete(
+        Uri.parse('$_base/users/$id'),
+        headers: await _headers(),
+      );
+      return r.statusCode == 200;
     } catch (_) {
-    } finally {
-      await _storage.delete(key: _tokenKey);
-      await _storage.delete(key: _userKey);
+      return false;
+    }
+  }
+
+  // ── Companion linking ─────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> linkCompanion({
+    required int patientId,
+    required int companionId,
+    String? relationship,
+    bool canViewDocuments = true,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$_base/companions/link'),
+        headers: await _headers(),
+        body: json.encode({
+          'patient_id': patientId,
+          'companion_id': companionId,
+          if (relationship != null) 'relationship': relationship,
+          'can_view_documents': canViewDocuments,
+        }),
+      );
+      final data = json.decode(r.body);
+      return r.statusCode == 200
+          ? {'success': true, 'message': data['message']}
+          : {'success': false, 'message': data['message'] ?? 'Eroare'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> unlinkCompanion({
+    required int patientId,
+    required int companionId,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$_base/companions/unlink'),
+        headers: await _headers(),
+        body: json.encode({
+          'patient_id': patientId,
+          'companion_id': companionId,
+        }),
+      );
+      final data = json.decode(r.body);
+      return r.statusCode == 200
+          ? {'success': true, 'message': data['message']}
+          : {'success': false, 'message': data['message'] ?? 'Eroare'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
     }
   }
 }

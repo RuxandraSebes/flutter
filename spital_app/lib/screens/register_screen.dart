@@ -61,7 +61,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (result['success'] == true) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(
+            user: result['user'], // 👈 FIX
+          ),
+        ),
         (_) => false,
       );
     } else {

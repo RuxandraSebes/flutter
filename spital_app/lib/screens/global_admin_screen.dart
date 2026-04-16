@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../models/user_model.dart';
-import '../../services/admin_service.dart';
-import '../../services/auth_service.dart';
-import '../login_screen.dart';
+import '../models/user_model.dart';
+import '../services/admin_service.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 import 'user_form_dialog.dart';
 import 'hospital_form_dialog.dart';
 
@@ -76,9 +76,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
 
   Future<void> _addHospital() async {
     final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (_) => const HospitalFormDialog(),
-    );
+        context: context, builder: (_) => const HospitalFormDialog());
     if (result == null) return;
     final r = await _admin.createHospital(result);
     if (r['success'] == true) {
@@ -90,9 +88,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
 
   Future<void> _editHospital(Map<String, dynamic> h) async {
     final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (_) => HospitalFormDialog(existing: h),
-    );
+        context: context, builder: (_) => HospitalFormDialog(existing: h));
     if (result == null) return;
     final r = await _admin.updateHospital(h['id'], result);
     if (r['success'] == true) {
@@ -103,26 +99,9 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   }
 
   Future<void> _deleteHospital(Map<String, dynamic> h) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Șterge spital'),
-        content: Text('Ești sigur că vrei să ștergi "${h['name']}"?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
-          ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(context, true),
-              child:
-                  const Text('Șterge', style: TextStyle(color: Colors.white))),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final ok = await _admin.deleteHospital(h['id']);
-    if (ok) {
+    final ok = await _confirm('Șterge spital', 'Ștergi "${h['name']}"?');
+    if (!ok) return;
+    if (await _admin.deleteHospital(h['id'])) {
       _snack('Spital șters');
       _loadHospitals();
     } else
@@ -133,9 +112,8 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
 
   Future<void> _addUser() async {
     final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (_) => UserFormDialog(hospitals: _hospitals),
-    );
+        context: context,
+        builder: (_) => UserFormDialog(hospitals: _hospitals));
     if (result == null) return;
     final r = await _admin.createUser(result);
     if (r['success'] == true) {
@@ -147,9 +125,8 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
 
   Future<void> _editUser(Map<String, dynamic> u) async {
     final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (_) => UserFormDialog(hospitals: _hospitals, existing: u),
-    );
+        context: context,
+        builder: (_) => UserFormDialog(hospitals: _hospitals, existing: u));
     if (result == null) return;
     final r = await _admin.updateUser(u['id'], result);
     if (r['success'] == true) {
@@ -160,30 +137,34 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   }
 
   Future<void> _deleteUser(Map<String, dynamic> u) async {
-    final confirmed = await showDialog<bool>(
+    final ok = await _confirm('Șterge utilizator', 'Ștergi "${u['name']}"?');
+    if (!ok) return;
+    if (await _admin.deleteUser(u['id'])) {
+      _snack('Utilizator șters');
+      _loadUsers();
+    } else
+      _snack('Eroare la ștergere', isError: true);
+  }
+
+  Future<bool> _confirm(String title, String content) async {
+    final v = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Șterge utilizator'),
-        content: Text('Ești sigur că vrei să ștergi "${u['name']}"?'),
+        title: Text(title),
+        content: Text(content),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Anulează')),
           ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(context, true),
-              child:
-                  const Text('Șterge', style: TextStyle(color: Colors.white))),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Șterge', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
-    if (confirmed != true) return;
-    final ok = await _admin.deleteUser(u['id']);
-    if (ok) {
-      _snack('Utilizator șters');
-      _loadUsers();
-    } else
-      _snack('Eroare la ștergere', isError: true);
+    return v == true;
   }
 
   @override
@@ -214,9 +195,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
         ),
       ),
       body: TabBarView(
-        controller: _tabs,
-        children: [_hospitalsTab(), _usersTab()],
-      ),
+          controller: _tabs, children: [_hospitalsTab(), _usersTab()]),
     );
   }
 
@@ -225,22 +204,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   Widget _hospitalsTab() {
     if (_loadingH) return const Center(child: CircularProgressIndicator());
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _addHospital,
-            icon: const Icon(Icons.add),
-            label: const Text('Adaugă Spital'),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A5276),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-          ),
-        ),
-      ),
+      _addBtn('Adaugă Spital', Icons.add, _addHospital),
       Expanded(
         child: RefreshIndicator(
           onRefresh: _loadHospitals,
@@ -290,22 +254,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   Widget _usersTab() {
     if (_loadingU) return const Center(child: CircularProgressIndicator());
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _addUser,
-            icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Adaugă Utilizator'),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A5276),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-          ),
-        ),
-      ),
+      _addBtn('Adaugă Utilizator', Icons.person_add_outlined, _addUser),
       Expanded(
         child: RefreshIndicator(
           onRefresh: _loadUsers,
@@ -382,6 +331,24 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
       ),
     ]);
   }
+
+  Widget _addBtn(String label, IconData icon, VoidCallback onPressed) =>
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon),
+            label: Text(label),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A5276),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+          ),
+        ),
+      );
 
   String _roleLabel(String? role) {
     switch (role) {

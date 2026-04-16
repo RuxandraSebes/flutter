@@ -10,9 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  url_launcher: ^6.3.0
-
-  # HTTP client
+  # Networking
   http: ^1.2.0
   http_parser: ^4.0.2
 
@@ -22,11 +20,14 @@ dependencies:
   # File picking (PDF upload)
   file_picker: ^8.0.0
 
-  # PDF viewing
-  flutter_pdfview: ^1.3.2
+  # PDF viewing (native mobile)
+  flutter_pdfview: ^1.4.4
 
-  # Temp directory for PDF download
+  # Temp directory for downloaded PDFs
   path_provider: ^2.1.2
+
+  # URL launcher (optional utility)
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

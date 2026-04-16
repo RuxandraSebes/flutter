@@ -38,10 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _uploadPdf() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-      withData: true,
-    );
+        type: FileType.custom, allowedExtensions: ['pdf'], withData: true);
     if (result == null || result.files.isEmpty) return;
     final file = result.files.first;
     if (file.bytes == null) return;
@@ -124,15 +121,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Dosar Medical UPU',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            Text(u.roleLabel,
-                style: const TextStyle(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(u.name,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          Text(u.roleLabel,
+              style: const TextStyle(fontSize: 12, color: Colors.white70)),
+        ]),
         actions: [
           IconButton(
               icon: const Icon(Icons.logout),
@@ -162,13 +157,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFF1A5276)))
             : _documents.isEmpty
-                ? _emptyState()
-                : _buildList(),
+                ? _emptyState(u)
+                : _buildList(u),
       ),
     );
   }
 
-  Widget _emptyState() => ListView(children: [
+  Widget _emptyState(UserModel u) => ListView(children: [
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.65,
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -181,27 +176,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade600)),
             const SizedBox(height: 8),
-            Text('Nu există documente disponibile',
-                style: TextStyle(color: Colors.grey.shade500),
-                textAlign: TextAlign.center),
+            Text(
+              u.isCompanion
+                  ? 'Pacienții cu care ești asociat nu au documente'
+                  : 'Nu ai documente încărcate',
+              style: TextStyle(color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
           ]),
         ),
       ]);
 
-  Widget _buildList() => ListView.builder(
+  Widget _buildList(UserModel u) => ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _documents.length,
         itemBuilder: (context, i) {
           final doc = _documents[i];
           return _DocCard(
             doc: doc,
-            canDelete: widget.user.isPatient,
+            canDelete: u.isPatient,
             onOpen: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      PdfViewerScreen(url: doc['url'], name: doc['name']),
-                )),
+                    builder: (_) =>
+                        PdfViewerScreen(url: doc['url'], name: doc['name']))),
             onDelete: () => _deleteDocument(doc['id'], doc['name']),
           );
         },

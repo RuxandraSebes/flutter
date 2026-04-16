@@ -3,6 +3,8 @@ import 'models/user_model.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/global_admin_screen.dart';
+import 'screens/hospital_admin_screen.dart';
+import 'screens/doctor_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
@@ -29,6 +31,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+/// Checks local token → routes to the correct screen or LoginScreen.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -39,8 +42,7 @@ class AuthGate extends StatelessWidget {
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+              body: Center(child: CircularProgressIndicator()));
         }
         if (snap.data == true) {
           return FutureBuilder<UserModel?>(
@@ -48,10 +50,11 @@ class AuthGate extends StatelessWidget {
             builder: (context, userSnap) {
               if (!userSnap.hasData) {
                 return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                    body: Center(child: CircularProgressIndicator()));
               }
-              return _roleScreen(userSnap.data!);
+              final user = userSnap.data;
+              if (user == null) return const LoginScreen();
+              return roleBasedHome(user);
             },
           );
         }
@@ -61,17 +64,15 @@ class AuthGate extends StatelessWidget {
   }
 }
 
-/// Returns the correct home screen based on user role.
-Widget roleBasedHome(UserModel user) => _roleScreen(user);
-
-Widget _roleScreen(UserModel user) {
+/// Public helper used after login / register to navigate to the correct screen.
+Widget roleBasedHome(UserModel user) {
   switch (user.role) {
     case 'global_admin':
       return GlobalAdminScreen(user: user);
-    // case 'hospital_admin':
-    //   return HospitalAdminScreen(user: user);
-    // case 'doctor':
-    //   return DoctorScreen(user: user);
+    case 'hospital_admin':
+      return HospitalAdminScreen(user: user);
+    case 'doctor':
+      return DoctorScreen(user: user);
     case 'patient':
     case 'companion':
     default:
