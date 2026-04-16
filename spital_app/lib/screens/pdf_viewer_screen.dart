@@ -1,5 +1,5 @@
 import 'dart:html' as html;
-import 'dart:ui' as ui;
+import 'dart:ui_web' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -18,18 +18,20 @@ class PdfViewerScreen extends StatefulWidget {
 }
 
 class _PdfViewerScreenState extends State<PdfViewerScreen> {
-  String get fullUrl => widget.url.startsWith('http')
-      ? widget.url
-      : 'http://10.0.2.2:8000${widget.url}';
+  late final String fullUrl;
 
   @override
   void initState() {
     super.initState();
 
+    fullUrl = widget.url.startsWith('http')
+        ? widget.url
+        : 'http://10.0.2.2:8000${widget.url}';
+
     if (kIsWeb) {
-      // ignore: undefined_prefixed_name
+      // IMPORTANT: viewType trebuie să fie constant
       ui.platformViewRegistry.registerViewFactory(
-        fullUrl,
+        'pdf-viewer',
         (int viewId) {
           final iframe = html.IFrameElement()
             ..src = fullUrl
@@ -56,7 +58,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         title: Text(widget.name),
         backgroundColor: const Color(0xFF1A5276),
       ),
-      body: HtmlElementView(viewType: fullUrl),
+      body: const HtmlElementView(viewType: 'pdf-viewer'),
     );
   }
 }

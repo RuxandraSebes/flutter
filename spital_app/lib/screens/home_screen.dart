@@ -1,22 +1,21 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final UserModel user;
+  const HomeScreen({super.key, required this.user});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _authService = AuthService();
   final _docService = DocumentService();
-
   List<Map<String, dynamic>> _documents = [];
   bool _loadingDocs = true;
   bool _uploading = false;
@@ -43,24 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
       allowedExtensions: ['pdf'],
       withData: true,
     );
-
     if (result == null || result.files.isEmpty) return;
-
     final file = result.files.first;
-    final bytes = file.bytes;
-
-    if (bytes == null) return;
+    if (file.bytes == null) return;
 
     setState(() => _uploading = true);
-
-    final response = await _docService.uploadDocument(bytes, file.name);
-
+    final response = await _docService.uploadDocument(file.bytes!, file.name);
     if (!mounted) return;
-
     setState(() => _uploading = false);
 
     if (response['success'] == true) {
-      _showSnack("Upload reușit");
+      _showSnack('Upload reușit');
       await _fetchDocuments();
     } else {
       _showSnack(response['message'], isError: true);
@@ -85,16 +77,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-
     if (confirmed != true) return;
-
     final ok = await _docService.deleteDocument(id);
     if (ok) {
       _showSnack('Document șters');
       await _fetchDocuments();
-    } else {
+    } else
       _showSnack('Eroare la ștergere', isError: true);
-    }
   }
 
   Future<void> _logout() async {
@@ -108,23 +97,16 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Anulează')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Deconectare'),
-          ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Deconectare')),
         ],
       ),
     );
-
     if (confirmed != true) return;
-
-    await _authService.logout();
+    await AuthService().logout();
     if (!mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    Navigator.pushAndRemoveUntil(context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
   void _showSnack(String msg, {bool isError = false}) {
@@ -136,41 +118,43 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final u = widget.user;
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.local_hospital, size: 20),
-            SizedBox(width: 8),
-            Text('Dosar Medical UPU',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text('Dosar Medical UPU',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            Text(u.roleLabel,
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Deconectare',
-            onPressed: _logout,
-          ),
+              icon: const Icon(Icons.logout),
+              tooltip: 'Deconectare',
+              onPressed: _logout),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _uploading ? null : _uploadPdf,
-        backgroundColor: const Color(0xFF1A5276),
-        foregroundColor: Colors.white,
-        icon: _uploading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-            : const Icon(Icons.upload_file),
-        label: Text(_uploading ? 'Se încarcă...' : 'Adaugă PDF'),
-      ),
+      floatingActionButton: u.isPatient
+          ? FloatingActionButton.extended(
+              onPressed: _uploading ? null : _uploadPdf,
+              backgroundColor: const Color(0xFF1A5276),
+              foregroundColor: Colors.white,
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.upload_file),
+              label: Text(_uploading ? 'Se încarcă...' : 'Adaugă PDF'),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: _fetchDocuments,
         color: const Color(0xFF1A5276),
@@ -178,77 +162,63 @@ class _HomeScreenState extends State<HomeScreen> {
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFF1A5276)))
             : _documents.isEmpty
-                ? _buildEmptyState()
-                : _buildDocumentList(),
+                ? _emptyState()
+                : _buildList(),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return ListView(
-      children: [
+  Widget _emptyState() => ListView(children: [
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.65,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.folder_open_outlined,
-                  size: 80, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              Text(
-                'Niciun document',
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.folder_open_outlined,
+                size: 80, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('Niciun document',
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Apasă butonul + pentru a adăuga o fișă UPU (PDF)',
+                    color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            Text('Nu există documente disponibile',
                 style: TextStyle(color: Colors.grey.shade500),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+                textAlign: TextAlign.center),
+          ]),
         ),
-      ],
-    );
-  }
+      ]);
 
-  Widget _buildDocumentList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _documents.length,
-      itemBuilder: (context, index) {
-        final doc = _documents[index];
-        return _DocumentCard(
-          doc: doc,
-          onOpen: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PdfViewerScreen(
-                url: doc['url'],
-                name: doc['name'],
-              ),
-            ),
-          ),
-          onDelete: () => _deleteDocument(doc['id'], doc['name']),
-        );
-      },
-    );
-  }
+  Widget _buildList() => ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _documents.length,
+        itemBuilder: (context, i) {
+          final doc = _documents[i];
+          return _DocCard(
+            doc: doc,
+            canDelete: widget.user.isPatient,
+            onOpen: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PdfViewerScreen(url: doc['url'], name: doc['name']),
+                )),
+            onDelete: () => _deleteDocument(doc['id'], doc['name']),
+          );
+        },
+      );
 }
 
-class _DocumentCard extends StatelessWidget {
+class _DocCard extends StatelessWidget {
   final Map<String, dynamic> doc;
   final VoidCallback onOpen;
   final VoidCallback onDelete;
+  final bool canDelete;
 
-  const _DocumentCard({
-    required this.doc,
-    required this.onOpen,
-    required this.onDelete,
-  });
+  const _DocCard(
+      {required this.doc,
+      required this.onOpen,
+      required this.onDelete,
+      required this.canDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -262,37 +232,34 @@ class _DocumentCard extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: const Color(0xFF1A5276).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
+              color: const Color(0xFF1A5276).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10)),
           child: const Icon(Icons.picture_as_pdf,
               color: Color(0xFF1A5276), size: 28),
         ),
-        title: Text(
-          doc['name'] ?? 'Document',
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          doc['created_at'] ?? '',
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
+        title: Text(doc['name'] ?? 'Document',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        subtitle:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(doc['created_at'] ?? '',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          if (doc['owner'] != null && doc['owner']['name'] != null)
+            Text('Pacient: ${doc['owner']['name']}',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+        ]),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
               icon: const Icon(Icons.open_in_new, color: Color(0xFF1A5276)),
               tooltip: 'Deschide',
-              onPressed: onOpen,
-            ),
+              onPressed: onOpen),
+          if (canDelete)
             IconButton(
-              icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
-              tooltip: 'Șterge',
-              onPressed: onDelete,
-            ),
-          ],
-        ),
+                icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                tooltip: 'Șterge',
+                onPressed: onDelete),
+        ]),
       ),
     );
   }

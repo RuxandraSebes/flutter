@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'models/user_model.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/global_admin_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
@@ -34,15 +36,45 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
       future: AuthService().isLoggedIn(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+      builder: (context, snap) {
+        if (!snap.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
-        return snapshot.data == true ? const HomeScreen() : const LoginScreen();
+        if (snap.data == true) {
+          return FutureBuilder<UserModel?>(
+            future: AuthService().getCachedUser(),
+            builder: (context, userSnap) {
+              if (!userSnap.hasData) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return _roleScreen(userSnap.data!);
+            },
+          );
+        }
+        return const LoginScreen();
       },
     );
+  }
+}
+
+/// Returns the correct home screen based on user role.
+Widget roleBasedHome(UserModel user) => _roleScreen(user);
+
+Widget _roleScreen(UserModel user) {
+  switch (user.role) {
+    case 'global_admin':
+      return GlobalAdminScreen(user: user);
+    // case 'hospital_admin':
+    //   return HospitalAdminScreen(user: user);
+    // case 'doctor':
+    //   return DoctorScreen(user: user);
+    case 'patient':
+    case 'companion':
+    default:
+      return HomeScreen(user: user);
   }
 }
