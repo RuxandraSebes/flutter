@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccessCodeController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentController;
@@ -21,6 +22,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/documents',         [DocumentController::class, 'store']);
     Route::delete('/documents/{id}',  [DocumentController::class, 'destroy']);
 
+    // ── Access codes ───────────────────────────────────────────────────────────
+    // Patient generates a temporary code
+    Route::post('/access-codes/generate', [AccessCodeController::class, 'generate']);
+    // Companion redeems the code to get linked
+    Route::post('/access-codes/redeem',   [AccessCodeController::class, 'redeem']);
+
     // ── Hospital management (global_admin only) ────────────────────────────────
     Route::middleware('role:global_admin')->group(function () {
         Route::get('/hospitals',          [AdminController::class, 'listHospitals']);
@@ -36,7 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/users/{id}',      [AdminController::class, 'updateUser']);
         Route::delete('/users/{id}',   [AdminController::class, 'deleteUser']);
 
-        // Companion linking
+        // Companion linking (manual, by staff)
         Route::post('/companions/link',    [AdminController::class, 'linkCompanion']);
         Route::post('/companions/unlink',  [AdminController::class, 'unlinkCompanion']);
     });

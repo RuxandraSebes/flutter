@@ -5,6 +5,8 @@ import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
+import 'generate_access_code_screen.dart';
+import 'redeem_access_code_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final UserModel user;
@@ -113,6 +115,19 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
+  /// Patient → opens the generate-code screen
+  void _openGenerateCode() {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const GenerateAccessCodeScreen()));
+  }
+
+  /// Companion → opens the redeem-code screen; refresh docs on success
+  Future<void> _openRedeemCode() async {
+    final result = await Navigator.push<bool>(context,
+        MaterialPageRoute(builder: (_) => const RedeemAccessCodeScreen()));
+    if (result == true) _fetchDocuments();
+  }
+
   @override
   Widget build(BuildContext context) {
     final u = widget.user;
@@ -129,6 +144,20 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
+          // Patient: quick access to generate-code
+          if (u.isPatient)
+            IconButton(
+              icon: const Icon(Icons.people_alt_outlined),
+              tooltip: 'Oferă acces aparținător',
+              onPressed: _openGenerateCode,
+            ),
+          // Companion: quick access to redeem-code
+          if (u.isCompanion)
+            IconButton(
+              icon: const Icon(Icons.vpn_key_outlined),
+              tooltip: 'Introdu cod pacient',
+              onPressed: _openRedeemCode,
+            ),
           IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Deconectare',
@@ -150,22 +179,103 @@ class _HomeScreenState extends State<HomeScreen> {
               label: Text(_uploading ? 'Se încarcă...' : 'Adaugă PDF'),
             )
           : null,
-      body: RefreshIndicator(
-        onRefresh: _fetchDocuments,
-        color: const Color(0xFF1A5276),
-        child: _loadingDocs
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF1A5276)))
-            : _documents.isEmpty
-                ? _emptyState(u)
-                : _buildList(u),
+      body: Column(
+        children: [
+          // Action banner for patient
+          if (u.isPatient) _patientAccessBanner(),
+          // Action banner for companion
+          if (u.isCompanion) _companionAccessBanner(),
+
+          // Documents list
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _fetchDocuments,
+              color: const Color(0xFF1A5276),
+              child: _loadingDocs
+                  ? const Center(
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF1A5276)))
+                  : _documents.isEmpty
+                      ? _emptyState(u)
+                      : _buildList(u),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _patientAccessBanner() => InkWell(
+        onTap: _openGenerateCode,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: const Color(0xFF1A5276).withOpacity(0.07),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A5276).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.people_alt_outlined,
+                  color: Color(0xFF1A5276), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Oferă acces aparținător',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A5276),
+                            fontSize: 14)),
+                    Text('Generează un cod temporar de 6 cifre',
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ]),
+            ),
+            const Icon(Icons.chevron_right, color: Color(0xFF1A5276)),
+          ]),
+        ),
+      );
+
+  Widget _companionAccessBanner() => InkWell(
+        onTap: _openRedeemCode,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: Colors.orange.withOpacity(0.07),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.vpn_key_outlined,
+                  color: Colors.orange, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Asociază-te cu un pacient',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange,
+                            fontSize: 14)),
+                    Text('Introdu codul primit de la pacient',
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ]),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.orange),
+          ]),
+        ),
+      );
+
   Widget _emptyState(UserModel u) => ListView(children: [
         SizedBox(
-          height: MediaQuery.of(context).size.height * 0.65,
+          height: MediaQuery.of(context).size.height * 0.55,
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.folder_open_outlined,
                 size: 80, color: Colors.grey.shade400),
@@ -178,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text(
               u.isCompanion
-                  ? 'Pacienții cu care ești asociat nu au documente'
+                  ? 'Asociază-te cu un pacient pentru a vedea documentele'
                   : 'Nu ai documente încărcate',
               style: TextStyle(color: Colors.grey.shade500),
               textAlign: TextAlign.center,

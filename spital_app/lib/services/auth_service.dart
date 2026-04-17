@@ -5,7 +5,7 @@ import '../models/user_model.dart';
 
 class AuthService {
   // Android emulator  → 10.0.2.2
-  static const String baseUrl = "http://192.168.0.51:8000/api";
+  static const String baseUrl = "http://192.168.0.237:8000/api";
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
 
