@@ -9,6 +9,8 @@ class CompanionAccessCode extends Model
     protected $fillable = [
         'patient_id',
         'code',
+        'invite_token',
+        'companion_email',
         'expires_at',
         'used',
     ];
@@ -26,5 +28,10 @@ class CompanionAccessCode extends Model
     public function isValid(): bool
     {
         return ! $this->used && $this->expires_at->isFuture();
+    }
+
+    public function isEmailType(): bool
+    {
+        return ! is_null($this->invite_token);
     }
 }

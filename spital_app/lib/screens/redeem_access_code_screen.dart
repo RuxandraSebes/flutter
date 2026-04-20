@@ -9,48 +9,63 @@ class RedeemAccessCodeScreen extends StatefulWidget {
   State<RedeemAccessCodeScreen> createState() => _RedeemAccessCodeScreenState();
 }
 
-class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
+class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
   final _service = AccessCodeService();
-  final _controllers = List.generate(6, (_) => TextEditingController());
-  final _focusNodes = List.generate(6, (_) => FocusNode());
 
-  bool _loading = false;
-  bool _success = false;
-  String? _patientName;
+  // ── Numeric code state ──────────────────────────────────────────────────────
+  final _digitControllers = List.generate(6, (_) => TextEditingController());
+  final _focusNodes = List.generate(6, (_) => FocusNode());
+  bool _loadingCode = false;
+  bool _successCode = false;
+
+  // ── Token state ─────────────────────────────────────────────────────────────
+  final _tokenCtrl = TextEditingController();
+  bool _loadingToken = false;
+  bool _successToken = false;
+
+  // ── Shared success state ────────────────────────────────────────────────────
+  String? _linkedPatientName;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+  }
 
   @override
   void dispose() {
-    for (final c in _controllers) c.dispose();
+    _tabs.dispose();
+    for (final c in _digitControllers) c.dispose();
     for (final f in _focusNodes) f.dispose();
+    _tokenCtrl.dispose();
     super.dispose();
   }
 
-  String get _fullCode =>
-      _controllers.map((c) => c.text).join();
+  // ── Numeric code logic ──────────────────────────────────────────────────────
 
-  bool get _isComplete => _fullCode.length == 6;
+  String get _fullCode => _digitControllers.map((c) => c.text).join();
 
-  Future<void> _redeem() async {
-    if (!_isComplete) return;
-    setState(() => _loading = true);
+  bool get _isCodeComplete => _fullCode.length == 6;
+
+  Future<void> _redeemCode() async {
+    if (!_isCodeComplete) return;
+    setState(() => _loadingCode = true);
 
     final result = await _service.redeemCode(_fullCode);
     if (!mounted) return;
-    setState(() => _loading = false);
+    setState(() => _loadingCode = false);
 
     if (result['success'] == true) {
       setState(() {
-        _success = true;
-        _patientName = result['patient']?['name'] ?? 'Pacient';
+        _successCode = true;
+        _linkedPatientName = result['patient']?['name'] ?? 'Pacient';
       });
     } else {
-      // Clear all fields and refocus first
-      for (final c in _controllers) c.clear();
+      for (final c in _digitControllers) c.clear();
       _focusNodes[0].requestFocus();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result['message'] ?? 'Cod invalid sau expirat'),
-        backgroundColor: Colors.red.shade700,
-      ));
+      _snack(result['message'] ?? 'Cod invalid sau expirat', isError: true);
     }
   }
 
@@ -60,8 +75,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
-        // Auto-submit when last digit entered
-        if (_isComplete) _redeem();
+        if (_isCodeComplete) _redeemCode();
       }
     } else if (value.isEmpty && index > 0) {
       _focusNodes[index - 1].requestFocus();
@@ -71,11 +85,45 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
   void _onKeyEvent(KeyEvent event, int index) {
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.backspace &&
-        _controllers[index].text.isEmpty &&
+        _digitControllers[index].text.isEmpty &&
         index > 0) {
       _focusNodes[index - 1].requestFocus();
     }
   }
+
+  // ── Token logic ─────────────────────────────────────────────────────────────
+
+  Future<void> _redeemToken() async {
+    final token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      _snack('Introdu tokenul de invitație', isError: true);
+      return;
+    }
+    setState(() => _loadingToken = true);
+
+    final result = await _service.redeemEmailInvite(token);
+    if (!mounted) return;
+    setState(() => _loadingToken = false);
+
+    if (result['success'] == true) {
+      setState(() {
+        _successToken = true;
+        _linkedPatientName = result['patient']?['name'] ?? 'Pacient';
+      });
+    } else {
+      _snack(result['message'] ?? 'Token invalid sau expirat', isError: true);
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+    ));
+  }
+
+  // ── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -84,21 +132,35 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Introdu codul de acces'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: _success ? _successView() : _inputView(),
+        title: const Text('Asociere cu pacientul'),
+        bottom: TabBar(
+          controller: _tabs,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          tabs: const [
+            Tab(icon: Icon(Icons.dialpad), text: 'Cod numeric'),
+            Tab(icon: Icon(Icons.vpn_key_outlined), text: 'Token email'),
+          ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabs,
+        children: [_codeTab(), _tokenTab()],
       ),
     );
   }
 
-  Widget _inputView() => Column(
+  // ── Tab 1: 6-digit code ─────────────────────────────────────────────────────
+
+  Widget _codeTab() {
+    if (_successCode) return _successView();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Header illustration
           Container(
             width: 80,
             height: 80,
@@ -106,20 +168,18 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
               color: const Color(0xFF1A5276).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.vpn_key_outlined,
-                size: 40, color: Color(0xFF1A5276)),
+            child:
+                const Icon(Icons.dialpad, size: 40, color: Color(0xFF1A5276)),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Asociere cu pacientul',
-            style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A5276)),
-          ),
+          const Text('Introdu codul numeric',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A5276))),
           const SizedBox(height: 8),
           Text(
-            'Cere pacientului codul de 6 cifre generat\ndin aplicația sa și introdu-l mai jos.',
+            'Cere pacientului codul de 6 cifre generat\ndin aplicația sa.',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             textAlign: TextAlign.center,
           ),
@@ -138,7 +198,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
                     width: 46,
                     height: 58,
                     child: TextField(
-                      controller: _controllers[i],
+                      controller: _digitControllers[i],
                       focusNode: _focusNodes[i],
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
@@ -176,18 +236,18 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
 
           const SizedBox(height: 12),
           Text(
-            'Codul este valabil 60 de secunde.',
+            'Codul expiră după 5 minute.',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
-
           const SizedBox(height: 36),
 
           SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
-              onPressed: (_isComplete && !_loading) ? _redeem : null,
-              icon: _loading
+              onPressed:
+                  (_isCodeComplete && !_loadingCode) ? _redeemCode : null,
+              icon: _loadingCode
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -195,7 +255,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.link),
               label: Text(
-                _loading ? 'Se verifică...' : 'Conectează-te',
+                _loadingCode ? 'Se verifică...' : 'Conectează-te',
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
@@ -207,40 +267,156 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
               ),
             ),
           ),
-
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           TextButton(
             onPressed: () {
-              for (final c in _controllers) c.clear();
+              for (final c in _digitControllers) c.clear();
               _focusNodes[0].requestFocus();
             },
-            child: const Text('Șterge codul',
-                style: TextStyle(color: Colors.grey)),
+            child: const Text('Șterge', style: TextStyle(color: Colors.grey)),
           ),
         ],
-      );
+      ),
+    );
+  }
 
-  Widget _successView() => Column(
+  // ── Tab 2: Email token ──────────────────────────────────────────────────────
+
+  Widget _tokenTab() {
+    if (_successToken) return _successView();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 40),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.vpn_key_outlined,
+                size: 40, color: Colors.orange),
+          ),
+          const SizedBox(height: 20),
+          const Text('Introdu tokenul din email',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A5276))),
+          const SizedBox(height: 8),
+          Text(
+            'Copiază tokenul primit în emailul de invitație\nși lipește-l mai jos.',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 28),
+          Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(children: [
+                TextField(
+                  controller: _tokenCtrl,
+                  autocorrect: false,
+                  maxLines: 2,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: 'Token de invitație',
+                    hintText: 'Lipește tokenul aici...',
+                    prefixIcon: const Icon(Icons.vpn_key_outlined,
+                        color: Color(0xFF1A5276)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF1A5276), width: 2)),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _loadingToken ? null : _redeemToken,
+                    icon: _loadingToken
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.link),
+                    label: Text(
+                      _loadingToken ? 'Se verifică...' : 'Acceptă invitația',
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A5276),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Row(children: [
+              Icon(Icons.info_outline, color: Colors.blue.shade600, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tokenul se găsește în emailul de invitație, sau pacientul ți-l poate trimite direct.',
+                  style: TextStyle(color: Colors.blue.shade700, fontSize: 13),
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Shared success view ─────────────────────────────────────────────────────
+
+  Widget _successView() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(children: [
           Container(
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              shape: BoxShape.circle,
-            ),
+                color: Colors.green.shade50, shape: BoxShape.circle),
             child: Icon(Icons.check_circle_outline,
                 size: 60, color: Colors.green.shade600),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Asociere reușită!',
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A5276)),
-          ),
+          const Text('Asociere reușită!',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A5276))),
           const SizedBox(height: 12),
           RichText(
             textAlign: TextAlign.center,
@@ -250,7 +426,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
               children: [
                 const TextSpan(text: 'Ești acum asociat pacientului\n'),
                 TextSpan(
-                  text: _patientName ?? '',
+                  text: _linkedPatientName ?? '',
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1A5276),
@@ -258,7 +434,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
                 ),
                 const TextSpan(
                     text:
-                        '\n\nVei putea acum vedea documentele\nmediale ale acestuia.'),
+                        '\n\nPoți acum vedea documentele\nmediale ale acestuia.'),
               ],
             ),
           ),
@@ -275,10 +451,11 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen> {
                     borderRadius: BorderRadius.circular(14)),
               ),
               child: const Text('Înapoi la documente',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ),
-        ],
-      );
+        ]),
+      ),
+    );
+  }
 }

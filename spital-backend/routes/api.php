@@ -17,16 +17,28 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me',      [AuthController::class, 'me']);
 
-    // Documents — all authenticated users, role filtering is inside the controller
+    // Documents — role filtering is inside the controller
     Route::get('/documents',          [DocumentController::class, 'index']);
     Route::post('/documents',         [DocumentController::class, 'store']);
     Route::delete('/documents/{id}',  [DocumentController::class, 'destroy']);
 
-    // ── Access codes ───────────────────────────────────────────────────────────
-    // Patient generates a temporary code
+    // ── Access codes (numeric, 5-minute TTL) ──────────────────────────────────
+    // Patient generates a temporary 6-digit code
     Route::post('/access-codes/generate', [AccessCodeController::class, 'generate']);
-    // Companion redeems the code to get linked
+    // Companion redeems the code → linked
     Route::post('/access-codes/redeem',   [AccessCodeController::class, 'redeem']);
+
+    // ── Email invitations (24-hour TTL) ───────────────────────────────────────
+    // Patient sends an invite to an email address
+    Route::post('/access-codes/invite',        [AccessCodeController::class, 'sendEmailInvite']);
+    // Companion redeems the token from the email
+    Route::post('/access-codes/invite/redeem', [AccessCodeController::class, 'redeemEmailInvite']);
+
+    // ── Companion management (patient self-service) ───────────────────────────
+    // Patient sees their linked companions
+    Route::get('/my-companions',               [AccessCodeController::class, 'myCompanions']);
+    // Patient removes a companion
+    Route::delete('/my-companions/{companionId}', [AccessCodeController::class, 'unlinkMyCompanion']);
 
     // ── Hospital management (global_admin only) ────────────────────────────────
     Route::middleware('role:global_admin')->group(function () {
@@ -43,7 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/users/{id}',      [AdminController::class, 'updateUser']);
         Route::delete('/users/{id}',   [AdminController::class, 'deleteUser']);
 
-        // Companion linking (manual, by staff)
+        // Manual companion linking by staff
         Route::post('/companions/link',    [AdminController::class, 'linkCompanion']);
         Route::post('/companions/unlink',  [AdminController::class, 'unlinkCompanion']);
     });
