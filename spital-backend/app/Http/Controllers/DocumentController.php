@@ -12,7 +12,7 @@ class DocumentController extends Controller
     /**
      * List documents — respects role:
      *   - patient/companion: own or linked patient docs
-     *   - doctor/hospital_admin: docs of patients in same hospital
+     *   - doctor/hospital_admin: docs of patients in same hospital OR unassigned patients
      *   - global_admin: all docs
      */
     public function index(Request $request)
@@ -27,10 +27,14 @@ class DocumentController extends Controller
 
             case 'hospital_admin':
             case 'doctor':
-                // docs belonging to patients in the same hospital
+                // FIX: also include patients without a hospital_id (self-registered)
+                // so they are not invisible to all doctors/admins.
                 $query->whereHas('user', function ($q) use ($user) {
-                    $q->where('hospital_id', $user->hospital_id)
-                      ->where('role', 'patient');
+                    $q->where('role', 'patient')
+                      ->where(function ($inner) use ($user) {
+                          $inner->where('hospital_id', $user->hospital_id)
+                                ->orWhereNull('hospital_id');
+                      });
                 });
                 break;
 

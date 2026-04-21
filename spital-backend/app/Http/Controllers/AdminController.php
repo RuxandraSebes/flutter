@@ -61,7 +61,11 @@ class AdminController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  USER MANAGEMENT  (global_admin can manage all; hospital_admin manages own hospital)
+    //  USER MANAGEMENT
+    //  - global_admin   → all users, all hospitals
+    //  - hospital_admin → users in their hospital only
+    //  - doctor         → patients/companions (for their hospital OR unassigned)
+    //                     READ-ONLY; write routes are still blocked by middleware
     // ══════════════════════════════════════════════════════════════════════════
 
     public function listUsers(Request $request)
@@ -69,8 +73,24 @@ class AdminController extends Controller
         $actor = $request->user();
         $query = User::with('hospital');
 
-        if ($actor->isHospitalAdmin()) {
+        if ($actor->isGlobalAdmin()) {
+            // No filter — sees everyone
+        } elseif ($actor->isHospitalAdmin()) {
+            // Sees only users in their own hospital
             $query->where('hospital_id', $actor->hospital_id);
+        } elseif ($actor->isDoctor()) {
+            // FIX: Doctors see patients/companions that either:
+            //   a) belong to their hospital, OR
+            //   b) were self-registered without a hospital (hospital_id IS NULL)
+            //      so they are not invisible to all doctors
+            $query->whereIn('role', ['patient', 'companion'])
+                  ->where(function ($q) use ($actor) {
+                      $q->where('hospital_id', $actor->hospital_id)
+                        ->orWhereNull('hospital_id');
+                  });
+        } else {
+            // Other roles see nothing
+            return response(['users' => []], 200);
         }
 
         $role = $request->query('role');

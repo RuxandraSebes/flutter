@@ -44,6 +44,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-companions',                  [AccessCodeController::class, 'myCompanions']);
     Route::delete('/my-companions/{companionId}', [AccessCodeController::class, 'unlinkMyCompanion']);
 
+    // ── User listing — doctors can READ patients in their hospital ─────────────
+    // FIX: doctors were excluded from this route, so DoctorScreen always got 403
+    Route::middleware('role:global_admin,hospital_admin,doctor')->group(function () {
+        Route::get('/users', [AdminController::class, 'listUsers']);
+    });
+
     // ── Hospital management (global_admin only) ────────────────────────────────
     Route::middleware('role:global_admin')->group(function () {
         Route::get('/hospitals',          [AdminController::class, 'listHospitals']);
@@ -52,9 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/hospitals/{id}',  [AdminController::class, 'deleteHospital']);
     });
 
-    // ── User management (global_admin + hospital_admin) ────────────────────────
+    // ── User management writes (global_admin + hospital_admin) ────────────────
     Route::middleware('role:global_admin,hospital_admin')->group(function () {
-        Route::get('/users',           [AdminController::class, 'listUsers']);
         Route::post('/users',          [AdminController::class, 'createUser']);
         Route::put('/users/{id}',      [AdminController::class, 'updateUser']);
         Route::delete('/users/{id}',   [AdminController::class, 'deleteUser']);
