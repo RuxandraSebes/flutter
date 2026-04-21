@@ -13,6 +13,14 @@ class ClaimAccountScreen extends StatefulWidget {
 
   @override
   State<ClaimAccountScreen> createState() => _ClaimAccountScreenState();
+
+  /// Returns true if this user was auto-created from Hipocrate ingestion.
+  static bool needsClaim(UserModel user) {
+    final email = user.email ?? '';
+    final name = user.name ?? '';
+
+    return email.endsWith('@hipocrate.internal') || name.startsWith('Pacient ');
+  }
 }
 
 class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
@@ -26,8 +34,8 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
     super.initState();
     _nameCtrl.text = widget.user.name;
     // Don't pre-fill internal emails
-    if (!widget.user.email.endsWith('@hipocrate.internal')) {
-      _emailCtrl.text = widget.user.email;
+    if (!(widget.user.email ?? '').endsWith('@hipocrate.internal')) {
+      _emailCtrl.text = widget.user.email ?? '';
     }
   }
 
@@ -36,12 +44,6 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     super.dispose();
-  }
-
-  /// Returns true if this user was auto-created from Hipocrate ingestion.
-  static bool needsClaim(UserModel user) {
-    return user.email.endsWith('@hipocrate.internal') ||
-        user.name.startsWith('Pacient ');
   }
 
   Future<void> _save() async {

@@ -123,21 +123,19 @@ class AuthService {
   }
 
   // ── Update profile (name / email) ──────────────────────────────────────────
+  // Uses PUT /api/profile — a self-service endpoint available to all roles.
+  // This is used by ClaimAccountScreen for Hipocrate auto-created patients.
 
   Future<Map<String, dynamic>> updateProfile({
     required String name,
     required String email,
   }) async {
     try {
-      final user = await getCachedUser();
-      if (user == null) {
-        return {'success': false, 'message': 'Sesiune expirată'};
-      }
       final headers = await authHeaders();
       headers['Content-Type'] = 'application/json';
 
       final response = await http.put(
-        Uri.parse('$baseUrl/users/${user.id}'),
+        Uri.parse('$baseUrl/profile'),
         headers: headers,
         body: jsonEncode({'name': name, 'email': email}),
       );

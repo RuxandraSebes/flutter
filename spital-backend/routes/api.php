@@ -4,11 +4,18 @@ use App\Http\Controllers\AccessCodeController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\PdfIngestionController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 // ── Public routes ─────────────────────────────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
+
+// ── PDF Ingestion (API key OR authenticated doctor/admin) ─────────────────────
+Route::post('/ingest/pdf',    [PdfIngestionController::class, 'ingest']);
+Route::post('/ingest/poll',   [PdfIngestionController::class, 'pollFolder']);
+Route::get('/ingest/status',  [PdfIngestionController::class, 'status']);
 
 // ── Protected routes ──────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -17,27 +24,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me',      [AuthController::class, 'me']);
 
+    // Self-service profile update (used by ClaimAccountScreen for Hipocrate patients)
+    Route::put('/profile', [ProfileController::class, 'update']);
+
     // Documents — role filtering is inside the controller
     Route::get('/documents',          [DocumentController::class, 'index']);
     Route::post('/documents',         [DocumentController::class, 'store']);
     Route::delete('/documents/{id}',  [DocumentController::class, 'destroy']);
 
     // ── Access codes (numeric, 5-minute TTL) ──────────────────────────────────
-    // Patient generates a temporary 6-digit code
     Route::post('/access-codes/generate', [AccessCodeController::class, 'generate']);
-    // Companion redeems the code → linked
     Route::post('/access-codes/redeem',   [AccessCodeController::class, 'redeem']);
 
     // ── Email invitations (24-hour TTL) ───────────────────────────────────────
-    // Patient sends an invite to an email address
     Route::post('/access-codes/invite',        [AccessCodeController::class, 'sendEmailInvite']);
-    // Companion redeems the token from the email
     Route::post('/access-codes/invite/redeem', [AccessCodeController::class, 'redeemEmailInvite']);
 
     // ── Companion management (patient self-service) ───────────────────────────
-    // Patient sees their linked companions
-    Route::get('/my-companions',               [AccessCodeController::class, 'myCompanions']);
-    // Patient removes a companion
+    Route::get('/my-companions',                  [AccessCodeController::class, 'myCompanions']);
     Route::delete('/my-companions/{companionId}', [AccessCodeController::class, 'unlinkMyCompanion']);
 
     // ── Hospital management (global_admin only) ────────────────────────────────
