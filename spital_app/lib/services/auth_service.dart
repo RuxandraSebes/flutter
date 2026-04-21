@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 
 class AuthService {
   // Android emulator  → 10.0.2.2
+  // Physical device   → IP of your machine on the local network
   static const String baseUrl = "http://192.168.0.51:8000/api";
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
@@ -69,7 +70,7 @@ class AuthService {
 
       return {
         'success': false,
-        'message': data['message'] ?? 'Eroare la autentificare',
+        'message': data['message'] ?? 'Date incorecte',
       };
     } catch (e) {
       return {'success': false, 'message': 'Nu se poate conecta la server'};
@@ -116,6 +117,36 @@ class AuthService {
         message = (errors.values.first as List).first.toString();
       }
       return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': 'Nu se poate conecta la server'};
+    }
+  }
+
+  // ── Update profile (name / email) ──────────────────────────────────────────
+
+  Future<Map<String, dynamic>> updateProfile({
+    required String name,
+    required String email,
+  }) async {
+    try {
+      final user = await getCachedUser();
+      if (user == null) {
+        return {'success': false, 'message': 'Sesiune expirată'};
+      }
+      final headers = await authHeaders();
+      headers['Content-Type'] = 'application/json';
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/${user.id}'),
+        headers: headers,
+        body: jsonEncode({'name': name, 'email': email}),
+      );
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        await _saveUser(data['user']);
+        return {'success': true, 'user': UserModel.fromJson(data['user'])};
+      }
+      return {'success': false, 'message': data['message'] ?? 'Eroare'};
     } catch (e) {
       return {'success': false, 'message': 'Nu se poate conecta la server'};
     }

@@ -61,7 +61,7 @@ class AccessCodeController extends Controller
 $accessCode = CompanionAccessCode::whereNull('invite_token')
     ->where('code', $code)
     ->where('used', false)
-    ->where('expires_at', '>=', now()->subSeconds(10)) // Oferă o marjă de 10 secunde
+    ->where('expires_at', '>=', now()) 
     ->with('patient')
     ->first();
 

@@ -75,7 +75,7 @@ class DatabaseSeeder extends Seeder
 
         // ── 6. Companion ──────────────────────────────────────────────────────
         $companion = User::firstOrCreate(
-            ['email' => 'insotitor@spital.ro'],
+            ['email' => 'sebesruxandra@gmail.com'],
             [
                 'name'        => 'Ion Ionescu',
                 'password'    => Hash::make('password'),

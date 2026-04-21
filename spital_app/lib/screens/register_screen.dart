@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
+import '../models/user_model.dart';
+import '../main.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  /// When set, the screen pre-selects the companion role and optionally
+  /// pre-fills the invite token so the user can redeem it right after signup.
+  final String? preselectedRole;
+  final String? inviteToken;
+
+  const RegisterScreen({
+    super.key,
+    this.preselectedRole,
+    this.inviteToken,
+  });
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -18,6 +28,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  // patient or companion — staff roles are created only by admins
+  late String _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.preselectedRole ?? 'patient';
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -27,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _handleRegister() async {
+  Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -41,8 +60,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showSnack('Parola trebuie să aibă minim 6 caractere', isError: true);
       return;
     }
-    if (cnp.isNotEmpty && cnp.length != 13) {
-      _showSnack('CNP-ul trebuie să aibă 13 cifre', isError: true);
+    if (_selectedRole == 'patient' && cnp.isNotEmpty && cnp.length != 13) {
+      _showSnack('CNP-ul trebuie să aibă exact 13 cifre', isError: true);
       return;
     }
 
@@ -52,20 +71,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       name: name,
       email: email,
       password: password,
-      cnp: cnp.isEmpty ? null : cnp,
+      cnp: (_selectedRole == 'patient' && cnp.isNotEmpty) ? cnp : null,
+      role: _selectedRole,
     );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
+      final user = result['user'] as UserModel;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            user: result['user'], // 👈 FIX
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => roleBasedHome(user)),
         (_) => false,
       );
     } else {
@@ -83,7 +100,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
@@ -97,104 +113,186 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Creare cont',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A5276),
-                ),
-              ),
+              Text('Creare cont',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1A5276))),
               const SizedBox(height: 6),
               Text(
-                'Înregistrează-te pentru a accesa dosarele UPU',
+                'Înregistrează-te pentru a accesa portalul UPU',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: Colors.grey.shade600),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
+
+              // ── Role selector ───────────────────────────────────────────────
+              Row(children: [
+                _roleChip(
+                  label: 'Pacient',
+                  icon: Icons.personal_injury_outlined,
+                  value: 'patient',
+                ),
+                const SizedBox(width: 12),
+                _roleChip(
+                  label: 'Aparținător',
+                  icon: Icons.people_alt_outlined,
+                  value: 'companion',
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Text(
+                _selectedRole == 'patient'
+                    ? 'Accesează și gestionează propriile documente medicale'
+                    : 'Vizualizează documentele pacientului la care ești asociat',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Form ────────────────────────────────────────────────────────
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      _buildField(
-                        controller: _nameController,
-                        label: 'Nume complet *',
-                        icon: Icons.person_outline,
+                  child: Column(children: [
+                    _buildField(
+                      controller: _nameController,
+                      label: 'Nume complet *',
+                      icon: Icons.person_outline,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildField(
+                      controller: _emailController,
+                      label: 'Email *',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildField(
+                      controller: _passwordController,
+                      label: 'Parolă * (min. 6 caractere)',
+                      icon: Icons.lock_outline,
+                      obscure: _obscurePassword,
+                      suffix: IconButton(
+                        icon: Icon(_obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
-                      const SizedBox(height: 16),
-                      _buildField(
-                        controller: _emailController,
-                        label: 'Email *',
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildField(
-                        controller: _passwordController,
-                        label: 'Parolă * (min. 6 caractere)',
-                        icon: Icons.lock_outline,
-                        obscure: _obscurePassword,
-                        suffix: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
+                    ),
+
+                    // CNP field — only for patients
+                    if (_selectedRole == 'patient') ...[
                       const SizedBox(height: 16),
                       _buildField(
                         controller: _cnpController,
-                        label: 'CNP Pacient (opțional — 13 cifre)',
+                        label: 'CNP (opțional — 13 cifre)',
                         icon: Icons.badge_outlined,
                         keyboardType: TextInputType.number,
                         helperText:
-                            'Folosit pentru a găsi fișele UPU din Hipocrate',
-                      ),
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1A5276),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Creează cont',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600)),
-                        ),
+                            'Permite găsirea automată a fișelor UPU din Hipocrate',
                       ),
                     ],
-                  ),
+
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleRegister,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A5276),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Creează cont',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ]),
                 ),
               ),
+
+              // Companion tip
+              if (_selectedRole == 'companion') ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline,
+                        color: Colors.orange, size: 18),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'După înregistrare, cere pacientului un cod de 6 cifre '
+                        'sau un token de invitație pentru a te asocia dosarului său.',
+                        style:
+                            TextStyle(fontSize: 13, color: Colors.deepOrange),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+
               const SizedBox(height: 20),
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Ai deja cont? Loghează-te',
-                    style: TextStyle(color: Color(0xFF1A5276)),
-                  ),
+                  child: const Text('Ai deja cont? Loghează-te',
+                      style: TextStyle(color: Color(0xFF1A5276))),
                 ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _roleChip(
+      {required String label, required IconData icon, required String value}) {
+    final selected = _selectedRole == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedRole = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1A5276) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color:
+                    selected ? const Color(0xFF1A5276) : Colors.grey.shade300,
+                width: selected ? 2 : 1),
+          ),
+          child: Column(children: [
+            Icon(icon,
+                color: selected ? Colors.white : Colors.grey.shade500,
+                size: 22),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: selected ? Colors.white : Colors.grey.shade700)),
+          ]),
         ),
       ),
     );
@@ -216,6 +314,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       decoration: InputDecoration(
         labelText: label,
         helperText: helperText,
+        helperMaxLines: 2,
         prefixIcon: Icon(icon, color: const Color(0xFF1A5276)),
         suffixIcon: suffix,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

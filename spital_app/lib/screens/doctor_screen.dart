@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import '../../models/user_model.dart';
-import '../../services/admin_service.dart';
-import '../../services/auth_service.dart';
-import '../../services/document_service.dart';
+import '../models/user_model.dart';
+import '../services/admin_service.dart';
+import '../services/auth_service.dart';
+import '../services/document_service.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 
@@ -27,11 +27,13 @@ class _DoctorScreenState extends State<DoctorScreen>
   bool _loadingP = true;
   bool _loadingD = true;
   bool _uploading = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(() => setState(() {}));
     _loadPatients();
     _loadDocs();
   }
@@ -45,21 +47,23 @@ class _DoctorScreenState extends State<DoctorScreen>
   Future<void> _loadPatients() async {
     setState(() => _loadingP = true);
     final list = await _admin.getUsers(role: 'patient');
-    if (mounted)
+    if (mounted) {
       setState(() {
         _patients = list;
         _loadingP = false;
       });
+    }
   }
 
   Future<void> _loadDocs({int? patientId}) async {
     setState(() => _loadingD = true);
     final list = await _docService.getDocuments(patientId: patientId);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _documents = list;
         _loadingD = false;
       });
+    }
   }
 
   Future<void> _uploadForPatient() async {
@@ -83,10 +87,10 @@ class _DoctorScreenState extends State<DoctorScreen>
     setState(() => _uploading = false);
 
     if (r['success'] == true) {
-      _snack('Document încărcat');
+      _snack('Document încărcat cu succes');
       _loadDocs(patientId: _selectedPatient!['id']);
     } else {
-      _snack(r['message'], isError: true);
+      _snack(r['message'] ?? 'Eroare la upload', isError: true);
     }
   }
 
@@ -102,6 +106,16 @@ class _DoctorScreenState extends State<DoctorScreen>
       content: Text(msg),
       backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
     ));
+  }
+
+  List<Map<String, dynamic>> get _filteredPatients {
+    if (_searchQuery.isEmpty) return _patients;
+    final q = _searchQuery.toLowerCase();
+    return _patients.where((p) {
+      return (p['name'] ?? '').toLowerCase().contains(q) ||
+          (p['email'] ?? '').toLowerCase().contains(q) ||
+          (p['cnp_pacient'] ?? '').contains(q);
+    }).toList();
   }
 
   @override
@@ -120,7 +134,10 @@ class _DoctorScreenState extends State<DoctorScreen>
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout)
+          IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Deconectare',
+              onPressed: _logout)
         ],
         bottom: TabBar(
           controller: _tabs,
@@ -157,57 +174,101 @@ class _DoctorScreenState extends State<DoctorScreen>
 
   Widget _patientsTab() {
     if (_loadingP) return const Center(child: CircularProgressIndicator());
-    return RefreshIndicator(
-      onRefresh: _loadPatients,
-      child: _patients.isEmpty
-          ? const Center(child: Text('Niciun pacient în spital'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _patients.length,
-              itemBuilder: (_, i) {
-                final p = _patients[i];
-                final isSelected = _selectedPatient?['id'] == p['id'];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                          color: isSelected
-                              ? const Color(0xFF1A5276)
-                              : Colors.transparent,
-                          width: 2)),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                        backgroundColor: isSelected
-                            ? const Color(0xFF1A5276)
-                            : const Color(0xFF1A5276).withOpacity(0.1),
-                        child: Icon(Icons.person,
-                            color: isSelected
-                                ? Colors.white
-                                : const Color(0xFF1A5276))),
-                    title: Text(p['name'] ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(p['email'] ?? ''),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle,
-                            color: Color(0xFF1A5276))
-                        : null,
-                    onTap: () {
-                      setState(() {
-                        _selectedPatient = isSelected ? null : p;
-                        _tabs.animateTo(1);
-                      });
-                      _loadDocs(patientId: isSelected ? null : p['id']);
-                    },
-                  ),
-                );
-              },
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Caută pacient (nume, email, CNP)...',
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF1A5276)),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
+            onChanged: (v) => setState(() => _searchQuery = v),
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadPatients,
+            child: _patients.isEmpty
+                ? const Center(child: Text('Niciun pacient în spital'))
+                : _filteredPatients.isEmpty
+                    ? Center(
+                        child: Text('Niciun rezultat pentru "$_searchQuery"',
+                            style: TextStyle(color: Colors.grey.shade500)))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _filteredPatients.length,
+                        itemBuilder: (_, i) {
+                          final p = _filteredPatients[i];
+                          final isSelected = _selectedPatient?['id'] == p['id'];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                    color: isSelected
+                                        ? const Color(0xFF1A5276)
+                                        : Colors.transparent,
+                                    width: 2)),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                  backgroundColor: isSelected
+                                      ? const Color(0xFF1A5276)
+                                      : const Color(0xFF1A5276)
+                                          .withOpacity(0.1),
+                                  child: Icon(Icons.person,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : const Color(0xFF1A5276))),
+                              title: Text(p['name'] ?? '',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p['email'] ?? '',
+                                      style: const TextStyle(fontSize: 12)),
+                                  if (p['cnp_pacient'] != null)
+                                    Text('CNP: ${p['cnp_pacient']}',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade500)),
+                                ],
+                              ),
+                              trailing: isSelected
+                                  ? const Icon(Icons.check_circle,
+                                      color: Color(0xFF1A5276))
+                                  : const Icon(Icons.chevron_right,
+                                      color: Colors.grey),
+                              isThreeLine: p['cnp_pacient'] != null,
+                              onTap: () {
+                                setState(() {
+                                  _selectedPatient = isSelected ? null : p;
+                                  _tabs.animateTo(1);
+                                });
+                                _loadDocs(
+                                    patientId: isSelected ? null : p['id']);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _documentsTab() {
     return Column(children: [
+      // Patient context banner
       if (_selectedPatient != null)
         Container(
           color: const Color(0xFF1A5276).withOpacity(0.08),
@@ -216,10 +277,18 @@ class _DoctorScreenState extends State<DoctorScreen>
             const Icon(Icons.person, color: Color(0xFF1A5276), size: 18),
             const SizedBox(width: 8),
             Expanded(
-                child: Text('Pacient: ${_selectedPatient!['name']}',
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Pacient: ${_selectedPatient!['name']}',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A5276)))),
+                        fontWeight: FontWeight.w600, color: Color(0xFF1A5276))),
+                if (_selectedPatient!['cnp_pacient'] != null)
+                  Text('CNP: ${_selectedPatient!['cnp_pacient']}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF1A5276))),
+              ],
+            )),
             TextButton(
               onPressed: () {
                 setState(() => _selectedPatient = null);
@@ -228,6 +297,19 @@ class _DoctorScreenState extends State<DoctorScreen>
               child: const Text('Toți',
                   style: TextStyle(color: Color(0xFF1A5276))),
             ),
+          ]),
+        )
+      else
+        Container(
+          color: Colors.grey.shade100,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(children: [
+            const Icon(Icons.info_outline, color: Colors.grey, size: 18),
+            const SizedBox(width: 8),
+            const Expanded(
+                child: Text(
+                    'Selectează un pacient din tab-ul Pacienți pentru a filtra documentele',
+                    style: TextStyle(color: Colors.grey, fontSize: 12))),
           ]),
         ),
       Expanded(
@@ -243,9 +325,10 @@ class _DoctorScreenState extends State<DoctorScreen>
                           const SizedBox(height: 12),
                           Text(
                               _selectedPatient != null
-                                  ? 'Niciun document pentru pacient'
-                                  : 'Selectează un pacient',
-                              style: TextStyle(color: Colors.grey.shade600)),
+                                  ? 'Niciun document pentru acest pacient'
+                                  : 'Selectează un pacient sau apasă refresh',
+                              style: TextStyle(color: Colors.grey.shade600),
+                              textAlign: TextAlign.center),
                         ]),
                   )
                 : RefreshIndicator(
@@ -261,20 +344,36 @@ class _DoctorScreenState extends State<DoctorScreen>
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                           child: ListTile(
-                            leading: const Icon(Icons.picture_as_pdf,
-                                color: Color(0xFF1A5276), size: 28),
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFF1A5276).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: const Icon(Icons.picture_as_pdf,
+                                  color: Color(0xFF1A5276), size: 26),
+                            ),
                             title: Text(doc['name'] ?? '',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
-                            subtitle: Text(
-                              '${doc['owner']?['name'] ?? ''} · ${doc['created_at'] ?? ''}',
-                              style: const TextStyle(fontSize: 12),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(doc['created_at'] ?? '',
+                                    style: const TextStyle(fontSize: 11)),
+                                if (doc['owner']?['name'] != null)
+                                  Text('Pacient: ${doc['owner']['name']}',
+                                      style: const TextStyle(fontSize: 11)),
+                              ],
                             ),
+                            isThreeLine: doc['owner']?['name'] != null,
                             trailing: IconButton(
                               icon: const Icon(Icons.open_in_new,
                                   color: Color(0xFF1A5276)),
+                              tooltip: 'Deschide PDF',
                               onPressed: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(

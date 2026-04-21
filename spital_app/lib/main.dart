@@ -5,6 +5,8 @@ import 'screens/home_screen.dart';
 import 'screens/global_admin_screen.dart';
 import 'screens/hospital_admin_screen.dart';
 import 'screens/doctor_screen.dart';
+import 'screens/claim_account_screen.dart';
+import 'screens/invite_token_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
@@ -27,11 +29,25 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const AuthGate(),
+      // Deep-link routing — handles spitalapp://invite/<token>
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        if (name.startsWith('/invite/')) {
+          final token = name.replaceFirst('/invite/', '');
+          if (token.isNotEmpty) {
+            return MaterialPageRoute(
+              builder: (_) => InviteTokenScreen(token: token),
+            );
+          }
+        }
+        return null;
+      },
     );
   }
 }
 
-/// Checks local token → routes to the correct screen or LoginScreen.
+/// Checks local token → routes to the correct screen.
+/// Also detects Hipocrate-auto-created patients and shows claim screen.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -54,6 +70,12 @@ class AuthGate extends StatelessWidget {
               }
               final user = userSnap.data;
               if (user == null) return const LoginScreen();
+
+              // Hipocrate auto-created accounts need to claim their profile
+              if (ClaimAccountScreen.needsClaim(user)) {
+                return ClaimAccountScreen(user: user);
+              }
+
               return roleBasedHome(user);
             },
           );
@@ -66,6 +88,11 @@ class AuthGate extends StatelessWidget {
 
 /// Public helper used after login / register to navigate to the correct screen.
 Widget roleBasedHome(UserModel user) {
+  // Auto-created patients should complete their profile first
+  if (ClaimAccountScreen.needsClaim(user)) {
+    return ClaimAccountScreen(user: user);
+  }
+
   switch (user.role) {
     case 'global_admin':
       return GlobalAdminScreen(user: user);
