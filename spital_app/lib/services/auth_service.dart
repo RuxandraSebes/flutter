@@ -4,8 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
 
 class AuthService {
-  // Android emulator  → 10.0.2.2
-  // Physical device   → IP of your machine on the local network
   static const String baseUrl = "http://192.168.0.51:8000/api";
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
@@ -47,6 +45,22 @@ class AuthService {
     };
   }
 
+  // ── Hospitals (public, for register screen picker) ─────────────────────────
+
+  Future<List<Map<String, dynamic>>> getHospitals() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/hospitals/public'),
+        headers: {'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['hospitals']);
+      }
+    } catch (_) {}
+    return [];
+  }
+
   // ── Login ──────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> login(String email, String password) async {
@@ -85,6 +99,7 @@ class AuthService {
     required String password,
     String? cnp,
     String role = 'patient',
+    int? hospitalId,
   }) async {
     try {
       final response = await http.post(
@@ -100,6 +115,7 @@ class AuthService {
           'password_confirmation': password,
           'role': role,
           if (cnp != null && cnp.isNotEmpty) 'cnp_pacient': cnp,
+          if (hospitalId != null) 'hospital_id': hospitalId,
         }),
       );
 
@@ -111,7 +127,7 @@ class AuthService {
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
 
-      String message = data['message'] ?? 'Eroare la înregistrare';
+      String message = data['message'] ?? 'Eroare la inregistrare';
       if (data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
         message = (errors.values.first as List).first.toString();
@@ -122,9 +138,7 @@ class AuthService {
     }
   }
 
-  // ── Update profile (name / email) ──────────────────────────────────────────
-  // Uses PUT /api/profile — a self-service endpoint available to all roles.
-  // This is used by ClaimAccountScreen for Hipocrate auto-created patients.
+  // ── Update profile ─────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> updateProfile({
     required String name,

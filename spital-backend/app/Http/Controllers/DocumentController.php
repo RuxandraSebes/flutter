@@ -11,9 +11,10 @@ class DocumentController extends Controller
 {
     /**
      * List documents — respects role:
-     *   - patient/companion: own or linked patient docs
-     *   - doctor/hospital_admin: docs of patients in same hospital OR unassigned patients
-     *   - global_admin: all docs
+     *   patient/companion → own or linked patient docs
+     *   doctor            → ALL patient documents (any hospital or none)
+     *   hospital_admin    → docs of patients in same hospital OR unassigned
+     *   global_admin      → all docs
      */
     public function index(Request $request)
     {
@@ -26,9 +27,6 @@ class DocumentController extends Controller
                 break;
 
             case 'hospital_admin':
-            case 'doctor':
-                // FIX: also include patients without a hospital_id (self-registered)
-                // so they are not invisible to all doctors/admins.
                 $query->whereHas('user', function ($q) use ($user) {
                     $q->where('role', 'patient')
                       ->where(function ($inner) use ($user) {
@@ -38,8 +36,12 @@ class DocumentController extends Controller
                 });
                 break;
 
+            case 'doctor':
+                // Doctors see ALL patient documents regardless of hospital
+                $query->whereHas('user', fn($q) => $q->where('role', 'patient'));
+                break;
+
             case 'companion':
-                // own docs + docs of linked patients (where can_view_documents = true)
                 $patientIds = $user->patients()
                     ->wherePivot('can_view_documents', true)
                     ->pluck('users.id');
@@ -56,7 +58,6 @@ class DocumentController extends Controller
                 break;
         }
 
-        // Optional filter by patient id (for doctor/admin)
         if ($request->has('patient_id') && in_array($user->role, ['doctor', 'hospital_admin', 'global_admin'])) {
             $query->where('user_id', $request->query('patient_id'));
         }
@@ -68,10 +69,6 @@ class DocumentController extends Controller
         return response(['documents' => $documents], 200);
     }
 
-    /**
-     * Upload a PDF document.
-     * Doctors / admins can upload on behalf of a patient by passing patient_id.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -80,9 +77,7 @@ class DocumentController extends Controller
             'patient_id' => 'nullable|exists:users,id',
         ]);
 
-        $user = $request->user();
-
-        // Determine the owner of the document
+        $user    = $request->user();
         $ownerId = $user->id;
 
         if ($request->filled('patient_id')) {
@@ -91,7 +86,7 @@ class DocumentController extends Controller
             }
             $patient = User::findOrFail($request->input('patient_id'));
             if (! $patient->isPatient()) {
-                return response(['message' => 'ID-ul specificat nu aparține unui pacient'], 422);
+                return response(['message' => 'ID-ul specificat nu apartine unui pacient'], 422);
             }
             $ownerId = $patient->id;
         }
@@ -109,9 +104,6 @@ class DocumentController extends Controller
         return response(['document' => $this->formatDoc($document)], 201);
     }
 
-    /**
-     * Delete a document.
-     */
     public function destroy(Request $request, int $id)
     {
         $user     = $request->user();
@@ -120,7 +112,7 @@ class DocumentController extends Controller
         $canDelete = match ($user->role) {
             'global_admin'   => true,
             'hospital_admin' => $document->user->hospital_id === $user->hospital_id,
-            'doctor'         => $document->user->hospital_id === $user->hospital_id,
+            'doctor'         => true, // doctors can delete any patient document
             default          => $document->user_id === $user->id,
         };
 
@@ -131,10 +123,8 @@ class DocumentController extends Controller
         Storage::disk('public')->delete($document->path);
         $document->delete();
 
-        return response(['message' => 'Document șters'], 200);
+        return response(['message' => 'Document sters'], 200);
     }
-
-    // ── Private helper ────────────────────────────────────────────────────────
 
     private function formatDoc(Document $doc): array
     {

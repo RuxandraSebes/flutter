@@ -57,15 +57,14 @@ class AdminController extends Controller
         $hospital = Hospital::findOrFail($id);
         $hospital->delete();
 
-        return response(['message' => 'Spitalul a fost șters'], 200);
+        return response(['message' => 'Spitalul a fost sters'], 200);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
     //  USER MANAGEMENT
-    //  - global_admin   → all users, all hospitals
-    //  - hospital_admin → users in their hospital only
-    //  - doctor         → patients/companions (for their hospital OR unassigned)
-    //                     READ-ONLY; write routes are still blocked by middleware
+    //  global_admin   → all users
+    //  hospital_admin → users in their hospital
+    //  doctor         → ALL patients + companions (read-only, no write routes)
     // ══════════════════════════════════════════════════════════════════════════
 
     public function listUsers(Request $request)
@@ -74,22 +73,14 @@ class AdminController extends Controller
         $query = User::with('hospital');
 
         if ($actor->isGlobalAdmin()) {
-            // No filter — sees everyone
+            // no filter — sees everyone
         } elseif ($actor->isHospitalAdmin()) {
-            // Sees only users in their own hospital
             $query->where('hospital_id', $actor->hospital_id);
         } elseif ($actor->isDoctor()) {
-            // FIX: Doctors see patients/companions that either:
-            //   a) belong to their hospital, OR
-            //   b) were self-registered without a hospital (hospital_id IS NULL)
-            //      so they are not invisible to all doctors
-            $query->whereIn('role', ['patient', 'companion'])
-                  ->where(function ($q) use ($actor) {
-                      $q->where('hospital_id', $actor->hospital_id)
-                        ->orWhereNull('hospital_id');
-                  });
+            // Doctors see ALL patients and companions regardless of hospital_id
+            // This covers: seeded patients, self-registered patients, Hipocrate-imported patients
+            $query->whereIn('role', ['patient', 'companion']);
         } else {
-            // Other roles see nothing
             return response(['users' => []], 200);
         }
 
@@ -103,21 +94,20 @@ class AdminController extends Controller
 
     public function createUser(Request $request)
     {
-        $actor  = $request->user();
+        $actor        = $request->user();
         $allowedRoles = $this->allowedRolesToCreate($actor);
 
         $fields = $request->validate([
-            'name'            => 'required|string|max:255',
-            'email'           => 'required|email|unique:users,email',
-            'password'        => 'required|string|min:6',
-            'role'            => ['required', Rule::in($allowedRoles)],
-            'hospital_id'     => 'nullable|exists:hospitals,id',
-            'cnp_pacient'     => 'nullable|string|size:13',
-            'specialization'  => 'nullable|string|max:255',
-            'license_number'  => 'nullable|string|max:100',
+            'name'           => 'required|string|max:255',
+            'email'          => 'required|email|unique:users,email',
+            'password'       => 'required|string|min:6',
+            'role'           => ['required', Rule::in($allowedRoles)],
+            'hospital_id'    => 'nullable|exists:hospitals,id',
+            'cnp_pacient'    => 'nullable|string|size:13',
+            'specialization' => 'nullable|string|max:255',
+            'license_number' => 'nullable|string|max:100',
         ]);
 
-        // Hospital admin can only create users for their own hospital
         if ($actor->isHospitalAdmin()) {
             $fields['hospital_id'] = $actor->hospital_id;
         }
@@ -135,7 +125,6 @@ class AdminController extends Controller
         $actor = $request->user();
         $user  = User::findOrFail($id);
 
-        // Hospital admin can only edit users in their hospital
         if ($actor->isHospitalAdmin() && $user->hospital_id !== $actor->hospital_id) {
             return response(['message' => 'Acces interzis'], 403);
         }
@@ -143,18 +132,18 @@ class AdminController extends Controller
         $allowedRoles = $this->allowedRolesToCreate($actor);
 
         $fields = $request->validate([
-            'name'            => 'sometimes|string|max:255',
-            'email'           => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
-            'role'            => ['sometimes', Rule::in($allowedRoles)],
-            'hospital_id'     => 'nullable|exists:hospitals,id',
-            'specialization'  => 'nullable|string|max:255',
-            'license_number'  => 'nullable|string|max:100',
-            'is_active'       => 'sometimes|boolean',
-            'cnp_pacient'     => 'nullable|string|size:13',
+            'name'           => 'sometimes|string|max:255',
+            'email'          => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
+            'role'           => ['sometimes', Rule::in($allowedRoles)],
+            'hospital_id'    => 'nullable|exists:hospitals,id',
+            'specialization' => 'nullable|string|max:255',
+            'license_number' => 'nullable|string|max:100',
+            'is_active'      => 'sometimes|boolean',
+            'cnp_pacient'    => 'nullable|string|size:13',
         ]);
 
         if ($actor->isHospitalAdmin()) {
-            unset($fields['hospital_id']); // cannot reassign to another hospital
+            unset($fields['hospital_id']);
         }
 
         $user->update($fields);
@@ -171,27 +160,26 @@ class AdminController extends Controller
             return response(['message' => 'Acces interzis'], 403);
         }
 
-        // Prevent self-deletion
         if ($actor->id === $user->id) {
-            return response(['message' => 'Nu poți șterge propriul cont din această interfață'], 422);
+            return response(['message' => 'Nu poti sterge propriul cont din aceasta interfata'], 422);
         }
 
         $user->delete();
 
-        return response(['message' => 'Utilizatorul a fost șters'], 200);
+        return response(['message' => 'Utilizatorul a fost sters'], 200);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  COMPANION LINKING  (hospital_admin / doctor)
+    //  COMPANION LINKING
     // ══════════════════════════════════════════════════════════════════════════
 
     public function linkCompanion(Request $request)
     {
         $fields = $request->validate([
-            'patient_id'          => 'required|exists:users,id',
-            'companion_id'        => 'required|exists:users,id',
-            'relationship'        => 'nullable|string|max:100',
-            'can_view_documents'  => 'boolean',
+            'patient_id'         => 'required|exists:users,id',
+            'companion_id'       => 'required|exists:users,id',
+            'relationship'       => 'nullable|string|max:100',
+            'can_view_documents' => 'boolean',
         ]);
 
         $patient   = User::findOrFail($fields['patient_id']);
@@ -201,7 +189,7 @@ class AdminController extends Controller
             return response(['message' => 'Utilizatorul selectat nu este pacient'], 422);
         }
         if (! $companion->isCompanion()) {
-            return response(['message' => 'Utilizatorul selectat nu este însoțitor'], 422);
+            return response(['message' => 'Utilizatorul selectat nu este insotitor'], 422);
         }
 
         $patient->companions()->syncWithoutDetaching([
@@ -211,7 +199,7 @@ class AdminController extends Controller
             ],
         ]);
 
-        return response(['message' => 'Însoțitor legat cu succes'], 200);
+        return response(['message' => 'Insotitor legat cu succes'], 200);
     }
 
     public function unlinkCompanion(Request $request)
@@ -224,7 +212,7 @@ class AdminController extends Controller
         $patient = User::findOrFail($fields['patient_id']);
         $patient->companions()->detach($fields['companion_id']);
 
-        return response(['message' => 'Însoțitor dezlegat'], 200);
+        return response(['message' => 'Insotitor dezlegat'], 200);
     }
 
     // ══════════════════════════════════════════════════════════════════════════

@@ -3,10 +3,12 @@ import 'package:file_picker/file_picker.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
+import '../services/chat_service.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'generate_access_code_screen.dart';
 import 'redeem_access_code_screen.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final UserModel user;
@@ -18,24 +20,39 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _docService = DocumentService();
+  final _chatService = ChatService();
   List<Map<String, dynamic>> _documents = [];
   bool _loadingDocs = true;
   bool _uploading = false;
+  int _unreadMessages = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchDocuments();
+    _fetchUnread();
   }
 
   Future<void> _fetchDocuments() async {
     setState(() => _loadingDocs = true);
     final docs = await _docService.getDocuments();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _documents = docs;
         _loadingDocs = false;
       });
+    }
+  }
+
+  Future<void> _fetchUnread() async {
+    final convs = await _chatService.getConversations();
+    if (mounted) {
+      int total = 0;
+      for (final c in convs) {
+        total += (c['unread_count'] ?? 0) as int;
+      }
+      setState(() => _unreadMessages = total);
+    }
   }
 
   Future<void> _uploadPdf() async {
@@ -51,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _uploading = false);
 
     if (response['success'] == true) {
-      _showSnack('Upload reușit');
+      _showSnack('Upload reusit');
       await _fetchDocuments();
     } else {
       _showSnack(response['message'], isError: true);
@@ -62,16 +79,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Șterge document'),
-        content: Text('Ești sigur că vrei să ștergi "$name"?'),
+        title: const Text('Sterge document'),
+        content: Text('Esti sigur ca vrei sa stergi "$name"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
+              child: const Text('Anuleaza')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Șterge', style: TextStyle(color: Colors.white)),
+            child: const Text('Sterge', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -79,10 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirmed != true) return;
     final ok = await _docService.deleteDocument(id);
     if (ok) {
-      _showSnack('Document șters');
+      _showSnack('Document sters');
       await _fetchDocuments();
-    } else
-      _showSnack('Eroare la ștergere', isError: true);
+    } else {
+      _showSnack('Eroare la stergere', isError: true);
+    }
   }
 
   Future<void> _logout() async {
@@ -90,11 +108,11 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Deconectare'),
-        content: const Text('Ești sigur că vrei să ieși din cont?'),
+        content: const Text('Esti sigur ca vrei sa iesi din cont?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
+              child: const Text('Anuleaza')),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Deconectare')),
@@ -115,17 +133,101 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  /// Patient → opens the generate-code screen
   void _openGenerateCode() {
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => const GenerateAccessCodeScreen()));
   }
 
-  /// Companion → opens the redeem-code screen; refresh docs on success
   Future<void> _openRedeemCode() async {
     final result = await Navigator.push<bool>(context,
         MaterialPageRoute(builder: (_) => const RedeemAccessCodeScreen()));
     if (result == true) _fetchDocuments();
+  }
+
+  /// Open chat — for patient: their own conversation
+  /// for companion: the first linked patient's conversation
+  Future<void> _openChat() async {
+    final u = widget.user;
+
+    if (u.isPatient) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            currentUser: u,
+            patientId: u.id,
+            patientName: u.name,
+          ),
+        ),
+      ).then((_) => _fetchUnread());
+      return;
+    }
+
+    if (u.isCompanion) {
+      // Get first linked patient
+      final convs = await _chatService.getConversations();
+      if (!mounted) return;
+      if (convs.isEmpty) {
+        _showSnack('Nu esti asociat niciunui pacient', isError: true);
+        return;
+      }
+      // If multiple patients, show picker
+      if (convs.length == 1) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              currentUser: u,
+              patientId: convs[0]['patient_id'],
+              patientName: convs[0]['patient_name'] ?? '',
+            ),
+          ),
+        ).then((_) => _fetchUnread());
+      } else {
+        _showPatientPicker(convs);
+      }
+    }
+  }
+
+  void _showPatientPicker(List<Map<String, dynamic>> patients) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Selecteaza pacientul',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Color(0xFF1A5276))),
+          ),
+          ...patients.map((p) => ListTile(
+                leading: const CircleAvatar(
+                    backgroundColor: Color(0xFF1A5276),
+                    child: Icon(Icons.person, color: Colors.white, size: 18)),
+                title: Text(p['patient_name'] ?? ''),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        currentUser: widget.user,
+                        patientId: p['patient_id'],
+                        patientName: p['patient_name'] ?? '',
+                      ),
+                    ),
+                  ).then((_) => _fetchUnread());
+                },
+              )),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
   }
 
   @override
@@ -144,20 +246,45 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
-          // Patient: quick access to generate-code
           if (u.isPatient)
             IconButton(
               icon: const Icon(Icons.people_alt_outlined),
-              tooltip: 'Oferă acces aparținător',
+              tooltip: 'Ofera acces apartinator',
               onPressed: _openGenerateCode,
             ),
-          // Companion: quick access to redeem-code
           if (u.isCompanion)
             IconButton(
               icon: const Icon(Icons.vpn_key_outlined),
               tooltip: 'Introdu cod pacient',
               onPressed: _openRedeemCode,
             ),
+          // Chat button with unread badge
+          Stack(children: [
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline),
+              tooltip: 'Mesaje',
+              onPressed: _openChat,
+            ),
+            if (_unreadMessages > 0)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                      color: Colors.red, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$_unreadMessages',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+          ]),
           IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Deconectare',
@@ -176,32 +303,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.upload_file),
-              label: Text(_uploading ? 'Se încarcă...' : 'Adaugă PDF'),
+              label: Text(_uploading ? 'Se incarca...' : 'Adauga PDF'),
             )
           : null,
-      body: Column(
-        children: [
-          // Action banner for patient
-          if (u.isPatient) _patientAccessBanner(),
-          // Action banner for companion
-          if (u.isCompanion) _companionAccessBanner(),
-
-          // Documents list
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _fetchDocuments,
-              color: const Color(0xFF1A5276),
-              child: _loadingDocs
-                  ? const Center(
-                      child:
-                          CircularProgressIndicator(color: Color(0xFF1A5276)))
-                  : _documents.isEmpty
-                      ? _emptyState(u)
-                      : _buildList(u),
-            ),
+      body: Column(children: [
+        if (u.isPatient) _patientAccessBanner(),
+        if (u.isCompanion) _companionAccessBanner(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _fetchDocuments,
+            color: const Color(0xFF1A5276),
+            child: _loadingDocs
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF1A5276)))
+                : _documents.isEmpty
+                    ? _emptyState(u)
+                    : _buildList(u),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 
@@ -225,12 +345,12 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Oferă acces aparținător',
+                    Text('Ofera acces apartinator',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF1A5276),
                             fontSize: 14)),
-                    Text('Generează un cod temporar de 6 cifre',
+                    Text('Genereaza un cod temporar de 6 cifre',
                         style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ]),
             ),
@@ -259,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Asociază-te cu un pacient',
+                    Text('Asociaza-te cu un pacient',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: Colors.orange,
@@ -288,8 +408,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text(
               u.isCompanion
-                  ? 'Asociază-te cu un pacient pentru a vedea documentele'
-                  : 'Nu ai documente încărcate',
+                  ? 'Asociaza-te cu un pacient pentru a vedea documentele'
+                  : 'Nu ai documente incarcate',
               style: TextStyle(color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
@@ -365,7 +485,7 @@ class _DocCard extends StatelessWidget {
           if (canDelete)
             IconButton(
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
-                tooltip: 'Șterge',
+                tooltip: 'Sterge',
                 onPressed: onDelete),
         ]),
       ),
