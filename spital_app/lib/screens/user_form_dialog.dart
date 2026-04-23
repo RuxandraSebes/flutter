@@ -1,3 +1,7 @@
+// REQ-12: CNP shown and required for patient AND companion
+// REQ-18: is_active only shown when editing (not on create forms)
+// REQ-9: inline error messages below the create button
+
 import 'package:flutter/material.dart';
 
 class UserFormDialog extends StatefulWidget {
@@ -29,11 +33,18 @@ class _UserFormDialogState extends State<UserFormDialog> {
   bool _isActive = true;
   bool _obscure = true;
 
+  // REQ-9: inline validation error
+  String? _inlineError;
+
   bool get _isEdit => widget.existing != null;
 
   List<String> get _allowedRoles => widget.isHospitalAdmin
       ? ['doctor', 'patient', 'companion']
       : ['global_admin', 'hospital_admin', 'doctor', 'patient', 'companion'];
+
+  // REQ-12: CNP needed for patient and companion
+  bool get _needsCnp => _role == 'patient' || _role == 'companion';
+  bool get _needsDoctor => _role == 'doctor';
 
   @override
   void initState() {
@@ -61,22 +72,52 @@ class _UserFormDialogState extends State<UserFormDialog> {
       _passwordCtrl,
       _cnpCtrl,
       _specCtrl,
-      _licCtrl
+      _licCtrl,
     ]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  void _setError(String msg) => setState(() => _inlineError = msg);
+  void _clearError() {
+    if (_inlineError != null) setState(() => _inlineError = null);
+  }
+
   void _submit() {
-    if (_nameCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty) return;
-    if (!_isEdit && _passwordCtrl.text.isEmpty) return;
+    _clearError();
+
+    if (_nameCtrl.text.trim().isEmpty) {
+      _setError('Introdu numele complet.');
+      return;
+    }
+    if (_emailCtrl.text.trim().isEmpty || !_emailCtrl.text.contains('@')) {
+      _setError('Introdu o adresă de email validă.');
+      return;
+    }
+    if (!_isEdit && _passwordCtrl.text.length < 6) {
+      _setError('Parola trebuie să aibă minim 6 caractere.');
+      return;
+    }
+    // REQ-12: Validate CNP for patient and companion
+    if (_needsCnp && !_isEdit) {
+      final cnp = _cnpCtrl.text.trim();
+      if (cnp.isEmpty) {
+        _setError('CNP-ul este obligatoriu pentru ${_roleLabel(_role)}.');
+        return;
+      }
+      if (cnp.length != 13 || !RegExp(r'^\d{13}$').hasMatch(cnp)) {
+        _setError('CNP-ul trebuie să aibă exact 13 cifre.');
+        return;
+      }
+    }
 
     final fields = <String, dynamic>{
       'name': _nameCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
       'role': _role,
-      'is_active': _isActive,
+      // REQ-18: is_active only sent on edit
+      if (_isEdit) 'is_active': _isActive,
       if (!_isEdit) 'password': _passwordCtrl.text,
       if (_cnpCtrl.text.isNotEmpty) 'cnp_pacient': _cnpCtrl.text.trim(),
       if (_specCtrl.text.isNotEmpty) 'specialization': _specCtrl.text.trim(),
@@ -90,12 +131,12 @@ class _UserFormDialogState extends State<UserFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final needsDoctor = _role == 'doctor';
-    final needsCnp = _role == 'patient';
-
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(_isEdit ? 'Editează utilizator' : 'Utilizator nou'),
+      title: Text(
+        _isEdit ? 'Editează utilizator' : 'Utilizator nou',
+        textAlign: TextAlign.center,
+      ),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       content: SizedBox(
         width: double.maxFinite,
@@ -125,7 +166,10 @@ class _UserFormDialogState extends State<UserFormDialog> {
                   .map((r) =>
                       DropdownMenuItem(value: r, child: Text(_roleLabel(r))))
                   .toList(),
-              onChanged: (v) => setState(() => _role = v ?? _role),
+              onChanged: (v) {
+                _clearError();
+                setState(() => _role = v ?? _role);
+              },
             ),
             // Hospital dropdown (global admin only)
             if (!widget.isHospitalAdmin && widget.hospitals.isNotEmpty) ...[
@@ -142,45 +186,101 @@ class _UserFormDialogState extends State<UserFormDialog> {
                 onChanged: (v) => setState(() => _hospitalId = v),
               ),
             ],
-            if (needsCnp) ...[
+            // REQ-12: CNP for patient AND companion
+            if (_needsCnp) ...[
               const SizedBox(height: 12),
-              _field(_cnpCtrl, 'CNP Pacient (13 cifre)', Icons.badge_outlined,
-                  type: TextInputType.number),
+              _field(
+                _cnpCtrl,
+                _isEdit ? 'CNP (13 cifre)' : 'CNP * (13 cifre, obligatoriu)',
+                Icons.badge_outlined,
+                type: TextInputType.number,
+              ),
             ],
-            if (needsDoctor) ...[
+            if (_needsDoctor) ...[
               const SizedBox(height: 12),
               _field(
                   _specCtrl, 'Specializare', Icons.medical_services_outlined),
               const SizedBox(height: 12),
               _field(_licCtrl, 'Număr licență', Icons.assignment_outlined),
             ],
-            const SizedBox(height: 12),
-            Row(children: [
-              const Text('Cont activ'),
-              const Spacer(),
-              Switch(
-                value: _isActive,
-                onChanged: (v) => setState(() => _isActive = v),
-                activeColor: const Color(0xFF1A5276),
+            // REQ-18: Active toggle ONLY on edit, not on create
+            if (_isEdit) ...[
+              const SizedBox(height: 12),
+              Row(children: [
+                const Icon(Icons.toggle_on_outlined,
+                    size: 18, color: Color(0xFF1A5276)),
+                const SizedBox(width: 8),
+                const Text('Cont activ',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w500, color: Color(0xFF1A5276))),
+                const Spacer(),
+                Switch(
+                  value: _isActive,
+                  onChanged: (v) => setState(() => _isActive = v),
+                  activeColor: const Color(0xFF1A5276),
+                ),
+              ]),
+            ],
+            const SizedBox(height: 16),
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Anulează')),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A5276),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10))),
+                  onPressed: _submit,
+                  child: Text(_isEdit ? 'Salvează' : 'Creează'),
+                ),
+              ],
+            ),
+            // REQ-9: Inline error BELOW the buttons
+            if (_inlineError != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.shade300, width: 1.5),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.error_outline,
+                        color: Colors.red.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _inlineError!,
+                        style: TextStyle(
+                          color: Colors.red.shade800,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ]),
+            ],
+            const SizedBox(height: 8),
           ]),
         ),
       ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Anulează')),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A5276),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10))),
-          onPressed: _submit,
-          child: Text(_isEdit ? 'Salvează' : 'Creează'),
-        ),
-      ],
+      // Override default actions since we embed them in content
+      actions: const [],
     );
   }
 
@@ -190,6 +290,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
       controller: ctrl,
       keyboardType: type,
       obscureText: obscure,
+      onChanged: (_) => _clearError(),
       decoration: _dec(label, icon).copyWith(suffixIcon: suffix),
     );
   }

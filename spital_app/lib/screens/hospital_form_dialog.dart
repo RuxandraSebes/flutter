@@ -1,3 +1,6 @@
+// REQ-18: is_active removed from create form — always defaults to true
+// is_active only shown when editing an existing hospital
+
 import 'package:flutter/material.dart';
 
 class HospitalFormDialog extends StatefulWidget {
@@ -14,6 +17,7 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
   final _addrCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  // REQ-18: only used when editing, not shown on create
   bool _isActive = true;
 
   bool get _isEdit => widget.existing != null;
@@ -42,21 +46,26 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty || _cityCtrl.text.trim().isEmpty) return;
-    Navigator.pop(context, {
+    final fields = <String, dynamic>{
       'name': _nameCtrl.text.trim(),
       'city': _cityCtrl.text.trim(),
       if (_addrCtrl.text.isNotEmpty) 'address': _addrCtrl.text.trim(),
       if (_phoneCtrl.text.isNotEmpty) 'phone': _phoneCtrl.text.trim(),
       if (_emailCtrl.text.isNotEmpty) 'email': _emailCtrl.text.trim(),
-      'is_active': _isActive,
-    });
+      // REQ-18: only include is_active when editing
+      if (_isEdit) 'is_active': _isActive,
+    };
+    Navigator.pop(context, fields);
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(_isEdit ? 'Editează spital' : 'Spital nou'),
+      title: Text(
+        _isEdit ? 'Editează spital' : 'Spital nou',
+        textAlign: TextAlign.center,
+      ),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -71,16 +80,25 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
           const SizedBox(height: 12),
           _field(_emailCtrl, 'Email', Icons.email_outlined,
               type: TextInputType.emailAddress),
+          // REQ-18: Show active toggle ONLY when editing (not on create)
+          if (_isEdit) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              const Icon(Icons.toggle_on_outlined,
+                  size: 18, color: Color(0xFF1A5276)),
+              const SizedBox(width: 8),
+              const Text('Activ',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w500, color: Color(0xFF1A5276))),
+              const Spacer(),
+              Switch(
+                value: _isActive,
+                onChanged: (v) => setState(() => _isActive = v),
+                activeColor: const Color(0xFF1A5276),
+              ),
+            ]),
+          ],
           const SizedBox(height: 8),
-          Row(children: [
-            const Text('Activ'),
-            const Spacer(),
-            Switch(
-              value: _isActive,
-              onChanged: (v) => setState(() => _isActive = v),
-              activeColor: const Color(0xFF1A5276),
-            ),
-          ]),
         ]),
       ),
       actions: [

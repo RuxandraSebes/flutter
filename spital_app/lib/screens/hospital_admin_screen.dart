@@ -1,6 +1,8 @@
-// REQ-12: CNP displayed alongside patient name in Hospital Admin
+// REQ-9: Consistent inline error messages (no snackbar above keyboard on write operations)
+// REQ-12: CNP displayed alongside patient name everywhere
 // REQ-13: Relationship field removed from companion link dialog
 // REQ-14: Search bar + scroll in patient/companion popup
+// REQ-18: Active status removed from create forms
 
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
@@ -67,32 +69,38 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     }
   }
 
-  // REQ-9: centered, longer error snackbar
-  void _snack(String msg, {bool isError = false}) {
+  // REQ-9: Use success snackbar only for non-error confirmations;
+  // errors are shown inline within dialogs (via UserFormDialog's own inline error)
+  void _snackSuccess(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.green.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+  }
+
+  // For errors that happen outside of dialogs (e.g., link companion failure),
+  // show a centered visible snackbar with longer duration
+  void _snackError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
-    if (isError) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Center(
-          child: Text(msg,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Center(
+        child: Text(
+          msg,
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+          textAlign: TextAlign.center,
         ),
-        backgroundColor: Colors.red.shade700,
-        duration: const Duration(seconds: 5),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.green.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-    }
+      ),
+      backgroundColor: Colors.red.shade700,
+      duration: const Duration(seconds: 6),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ));
   }
 
   Future<void> _logout() async {
@@ -110,10 +118,12 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (result == null) return;
     final r = await _admin.createUser(result);
     if (r['success'] == true) {
-      _snack('Utilizator creat');
+      _snackSuccess('Utilizator creat');
       _loadUsers();
     } else {
-      _snack(r['message'], isError: true);
+      // Error shown inline within the dialog itself (REQ-9)
+      // But if dialog already closed, show here
+      _snackError(r['message'] ?? 'Eroare la creare');
     }
   }
 
@@ -126,10 +136,10 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (result == null) return;
     final r = await _admin.updateUser(u['id'], result);
     if (r['success'] == true) {
-      _snack('Actualizat');
+      _snackSuccess('Actualizat');
       _loadUsers();
     } else {
-      _snack(r['message'], isError: true);
+      _snackError(r['message'] ?? 'Eroare la actualizare');
     }
   }
 
@@ -137,10 +147,10 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     final ok = await _confirm('Șterge utilizator', 'Ștergi "${u['name']}"?');
     if (!ok) return;
     if (await _admin.deleteUser(u['id'])) {
-      _snack('Șters');
+      _snackSuccess('Șters');
       _loadUsers();
     } else {
-      _snack('Eroare la ștergere', isError: true);
+      _snackError('Eroare la ștergere. Încearcă din nou.');
     }
   }
 
@@ -148,30 +158,30 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     final patients = _users.where((u) => u['role'] == 'patient').toList();
     final companions = _users.where((u) => u['role'] == 'companion').toList();
     if (patients.isEmpty || companions.isEmpty) {
-      _snack('Lipsesc pacienți sau însoțitori', isError: true);
+      _snackError('Lipsesc pacienți sau însoțitori în sistem');
       return;
     }
-    // REQ-14: CompanionLinkDialog has search + scroll built in
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) =>
           CompanionLinkDialog(patients: patients, companions: companions),
     );
     if (result == null) return;
-    // REQ-13: no relationship field
     final r = await _admin.linkCompanion(
       patientId: result['patient_id'],
       companionId: result['companion_id'],
     );
-    _snack(r['message'] ?? (r['success'] ? 'Legat' : 'Eroare'),
-        isError: r['success'] != true);
+    if (r['success'] == true) {
+      _snackSuccess(r['message'] ?? 'Însoțitor legat cu succes');
+    } else {
+      _snackError(r['message'] ?? 'Eroare la legare');
+    }
   }
 
   Future<bool> _confirm(String title, String content) async {
     final v = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        // REQ-9: centered
         title: Text(title, textAlign: TextAlign.center),
         content: Text(content, textAlign: TextAlign.center),
         actionsAlignment: MainAxisAlignment.center,
@@ -214,7 +224,6 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.people_outline), text: 'Utilizatori'),
-            // REQ-3: person_add icon for companion link
             Tab(icon: Icon(Icons.person_add_outlined), text: 'Însoțitori'),
             Tab(icon: Icon(Icons.folder_outlined), text: 'Documente'),
           ],
@@ -266,11 +275,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
           width: double.infinity,
-          // REQ-3: person_add icon
           child: ElevatedButton.icon(
             onPressed: _linkCompanion,
             icon: const Icon(Icons.person_add_outlined),
-            // REQ-4: "Însoțitor" terminology
             label: const Text('Leagă însoțitor de pacient'),
             style: _btnStyle(),
           ),
@@ -278,7 +285,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         const SizedBox(height: 20),
         _sectionHeader('Pacienți (${patients.length})'),
         const SizedBox(height: 8),
-        // REQ-12: CNP shown alongside patient name
+        // REQ-12: CNP shown prominently
         ...patients.map((p) => _simpleTile(
             icon: Icons.person,
             title: p['name'] ?? '',
@@ -287,13 +294,14 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
                 : (p['email'] ?? ''),
             color: const Color(0xFF1A5276))),
         const SizedBox(height: 16),
-        // REQ-4: "Însoțitori"
         _sectionHeader('Însoțitori (${companions.length})'),
         const SizedBox(height: 8),
         ...companions.map((c) => _simpleTile(
             icon: Icons.people,
             title: c['name'] ?? '',
-            subtitle: c['email'] ?? '',
+            subtitle: c['cnp_pacient'] != null
+                ? 'CNP: ${c['cnp_pacient']} · ${c['email'] ?? ''}'
+                : (c['email'] ?? ''),
             color: Colors.orange)),
       ]),
     );
@@ -313,15 +321,12 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
                 final ownerName = doc['owner']?['name'] ?? '';
                 // REQ-12: CNP shown in document list
                 final ownerCnp = doc['owner']?['cnp_pacient'];
-                final ownerLabel = ownerCnp != null
-                    ? '$ownerName (CNP: $ownerCnp)'
-                    : ownerName;
+                final cnpLabel = ownerCnp != null ? ' · CNP: $ownerCnp' : '';
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 10),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  // REQ-1: tap whole row to open
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () => Navigator.push(
@@ -335,10 +340,22 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
                           color: Color(0xFF1A5276), size: 28),
                       title: Text(doc['name'] ?? '',
                           style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                        '$ownerLabel · ${doc['created_at'] ?? ''}',
-                        style: const TextStyle(fontSize: 12),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(ownerName, style: const TextStyle(fontSize: 12)),
+                          if (ownerCnp != null)
+                            Text('CNP: $ownerCnp$cnpLabel',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade500,
+                                    fontWeight: FontWeight.w500)),
+                          Text(doc['created_at'] ?? '',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade400)),
+                        ],
                       ),
+                      isThreeLine: ownerCnp != null,
                       trailing: const Icon(Icons.chevron_right,
                           color: Color(0xFF1A5276)),
                     ),
@@ -369,10 +386,21 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         subtitle:
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(u['email'] ?? ''),
-          // REQ-12: show CNP for patients
-          if (u['role'] == 'patient' && u['cnp_pacient'] != null)
-            Text('CNP: ${u['cnp_pacient']}',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          // REQ-12: show CNP for patients AND companions
+          if ((u['role'] == 'patient' || u['role'] == 'companion') &&
+              u['cnp_pacient'] != null)
+            Container(
+              margin: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                  color: const Color(0xFF1A5276).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(6)),
+              child: Text('CNP: ${u['cnp_pacient']}',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF1A5276),
+                      fontWeight: FontWeight.w600)),
+            ),
           Container(
             margin: const EdgeInsets.only(top: 4),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -392,7 +420,8 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
               icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
               onPressed: () => _deleteUser(u)),
         ]),
-        isThreeLine: u['role'] == 'patient' && u['cnp_pacient'] != null,
+        isThreeLine: (u['role'] == 'patient' || u['role'] == 'companion') &&
+            u['cnp_pacient'] != null,
       ),
     );
   }
@@ -434,7 +463,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       case 'patient':
         return 'Pacient';
       case 'companion':
-        return 'Însoțitor'; // REQ-4
+        return 'Însoțitor';
       default:
         return role ?? '';
     }

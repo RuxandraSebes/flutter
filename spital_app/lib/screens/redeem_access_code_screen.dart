@@ -1,142 +1,176 @@
+// REQ-9: All errors shown inline below buttons, not as snackbars above keyboard
+
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/access_code_service.dart';
 
-class RedeemAccessCodeScreen extends StatefulWidget {
-  const RedeemAccessCodeScreen({super.key});
+class GenerateAccessCodeScreen extends StatefulWidget {
+  const GenerateAccessCodeScreen({super.key});
 
   @override
-  State<RedeemAccessCodeScreen> createState() => _RedeemAccessCodeScreenState();
+  State<GenerateAccessCodeScreen> createState() =>
+      _GenerateAccessCodeScreenState();
 }
 
-class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
-    with SingleTickerProviderStateMixin {
+class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
+    with TickerProviderStateMixin {
   late final TabController _tabs;
   final _service = AccessCodeService();
 
   // ── Numeric code state ──────────────────────────────────────────────────────
-  final _digitControllers = List.generate(6, (_) => TextEditingController());
-  final _focusNodes = List.generate(6, (_) => FocusNode());
+  String? _code;
+  int _secondsLeft = 0;
   bool _loadingCode = false;
-  bool _successCode = false;
+  bool _expired = false;
+  Timer? _timer;
+  late AnimationController _pulseCtrl;
+  late Animation<double> _pulseAnim;
 
-  // ── Token state ─────────────────────────────────────────────────────────────
-  final _tokenCtrl = TextEditingController();
-  bool _loadingToken = false;
-  bool _successToken = false;
+  // ── Email invite state ──────────────────────────────────────────────────────
+  final _emailCtrl = TextEditingController();
+  bool _sendingEmail = false;
+  String? _sentToken;
+  bool? _mailSent;
+  String? _emailSentTo;
 
-  // ── Shared success state ────────────────────────────────────────────────────
-  String? _linkedPatientName;
-
-  String? _errorMessage;
+  // REQ-9: inline error states per tab
+  String? _codeError;
+  String? _emailError;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
+    _pulseCtrl.dispose();
     _tabs.dispose();
-    for (final c in _digitControllers) c.dispose();
-    for (final f in _focusNodes) f.dispose();
-    _tokenCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
-  // ── Numeric code logic ──────────────────────────────────────────────────────
+  // ── Code logic ──────────────────────────────────────────────────────────────
 
-  String get _fullCode => _digitControllers.map((c) => c.text).join();
-
-  bool get _isCodeComplete => _fullCode.length == 6;
-
-  Future<void> _redeemCode() async {
-    if (!_isCodeComplete) return;
+  Future<void> _generateCode() async {
     setState(() {
       _loadingCode = true;
-      _errorMessage = null; // Resetăm eroarea la un nou început
+      _expired = false;
+      _code = null;
+      _codeError = null;
     });
+    _timer?.cancel();
 
-    final result = await _service.redeemCode(_fullCode);
+    final result = await _service.generateCode();
     if (!mounted) return;
-    setState(() => _loadingCode = false);
 
     if (result['success'] == true) {
       setState(() {
-        _successCode = true;
-        _linkedPatientName = result['patient']?['name'] ?? 'Pacient';
+        _code = result['code'];
+        _secondsLeft = result['expires_in'] ?? 300;
+        _loadingCode = false;
       });
+      _startCountdown();
     } else {
-      // În loc de _snack, setăm _errorMessage
       setState(() {
-        _errorMessage = result['message'] ?? 'Cod invalid sau expirat';
-        for (final c in _digitControllers) c.clear();
-        _focusNodes[0].requestFocus();
+        _loadingCode = false;
+        // REQ-9: set inline error
+        _codeError = result['message'] ?? 'Eroare la generarea codului';
       });
     }
   }
 
-  void _onDigitChanged(String value, int index) {
-    if (value.length == 1) {
-      if (index < 5) {
-        _focusNodes[index + 1].requestFocus();
-      } else {
-        _focusNodes[index].unfocus();
-        if (_isCodeComplete) _redeemCode();
+  void _startCountdown() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
       }
-    } else if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
+      setState(() {
+        _secondsLeft--;
+        if (_secondsLeft <= 0) {
+          _expired = true;
+          _code = null;
+          t.cancel();
+        }
+      });
+    });
   }
 
-  void _onKeyEvent(KeyEvent event, int index) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.backspace &&
-        _digitControllers[index].text.isEmpty &&
-        index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
+  void _copyCode() {
+    if (_code == null) return;
+    Clipboard.setData(ClipboardData(text: _code!));
+    _showSnack('Cod copiat în clipboard');
   }
 
-  // ── Token logic ─────────────────────────────────────────────────────────────
+  Color get _timerColor {
+    if (_secondsLeft > 120) return Colors.green.shade600;
+    if (_secondsLeft > 30) return Colors.orange.shade600;
+    return Colors.red.shade600;
+  }
 
-  Future<void> _redeemToken() async {
-    final token = _tokenCtrl.text.trim();
+  String get _timerLabel {
+    final m = _secondsLeft ~/ 60;
+    final s = _secondsLeft % 60;
+    return m > 0 ? '$m min ${s.toString().padLeft(2, '0')} sec' : '$s secunde';
+  }
 
-    if (token.isEmpty) {
-      setState(() => _errorMessage = 'Introdu tokenul de invitație');
+  // ── Email logic ─────────────────────────────────────────────────────────────
+
+  Future<void> _sendEmailInvite() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _emailError = 'Introdu o adresă de email validă.');
       return;
     }
 
     setState(() {
-      _loadingToken = true;
-      _errorMessage = null; // Resetăm eroarea veche
+      _sendingEmail = true;
+      _emailError = null;
     });
-
-    final result = await _service.redeemEmailInvite(token);
+    final result = await _service.sendEmailInvite(email);
     if (!mounted) return;
-
-    setState(() => _loadingToken = false);
+    setState(() => _sendingEmail = false);
 
     if (result['success'] == true) {
       setState(() {
-        _successToken = true;
-        _linkedPatientName = result['patient']?['name'] ?? 'Pacient';
+        _sentToken = result['invite_token'];
+        _mailSent = result['mail_sent'] ?? false;
+        _emailSentTo = email;
+        _emailError = null;
       });
+      _emailCtrl.clear();
     } else {
-      // Setăm mesajul primit de la server sau unul generic
-      setState(() {
-        _errorMessage = result['message'] ?? 'Token invalid sau expirat';
-      });
+      // REQ-9: inline error below send button
+      setState(() =>
+          _emailError = result['message'] ?? 'Eroare la trimiterea invitației');
     }
   }
 
-  void _snack(String msg, {bool isError = false}) {
+  void _copyToken() {
+    if (_sentToken == null) return;
+    Clipboard.setData(ClipboardData(text: _sentToken!));
+    _showSnack('Token copiat în clipboard');
+  }
+
+  void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+      backgroundColor: Colors.green.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
   }
 
@@ -149,7 +183,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Asociere cu pacientul'),
+        title: const Text('Oferă acces însoțitor'),
         bottom: TabBar(
           controller: _tabs,
           indicatorColor: Colors.white,
@@ -157,122 +191,127 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.dialpad), text: 'Cod numeric'),
-            Tab(icon: Icon(Icons.vpn_key_outlined), text: 'Token email'),
+            Tab(icon: Icon(Icons.email_outlined), text: 'Invitație email'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabs,
-        children: [_codeTab(), _tokenTab()],
+        children: [_codeTab(), _emailTab()],
       ),
     );
   }
 
-  // ── Tab 1: 6-digit code ─────────────────────────────────────────────────────
+  // ── Tab 1: Numeric code ─────────────────────────────────────────────────────
 
   Widget _codeTab() {
-    if (_successCode) return _successView();
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A5276).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child:
-                const Icon(Icons.dialpad, size: 40, color: Color(0xFF1A5276)),
+          _howItWorksCard(
+            steps: const [
+              ('1', 'Apasă „Generează cod"'),
+              ('2', 'Comunică cele 6 cifre însoțitorului'),
+              ('3', 'Însoțitorul introduce codul în aplicație'),
+            ],
+            note: 'Codul este valabil 5 minute.',
           ),
-          const SizedBox(height: 20),
-          const Text('Introdu codul numeric',
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A5276))),
-          const SizedBox(height: 8),
-          Text(
-            'Cere pacientului codul de 6 cifre generat\ndin aplicația sa.',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 32),
 
-          // 6 digit boxes
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(6, (i) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: KeyboardListener(
-                  focusNode: FocusNode(),
-                  onKeyEvent: (e) => _onKeyEvent(e, i),
-                  child: SizedBox(
-                    width: 46,
-                    height: 58,
-                    child: TextField(
-                      controller: _digitControllers[i],
-                      focusNode: _focusNodes[i],
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      maxLength: 1,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.w700),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: Color(0xFF1A5276), width: 2),
-                        ),
-                      ),
-                      onChanged: (v) => _onDigitChanged(v, i),
+          // Code display
+          if (_loadingCode)
+            const CircularProgressIndicator(color: Color(0xFF1A5276))
+          else if (_code != null && !_expired) ...[
+            ScaleTransition(
+              scale: _pulseAnim,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A5276),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1A5276).withOpacity(0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(children: [
+                  const Text('Codul tău de acces',
+                      style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  const SizedBox(height: 10),
+                  Text(
+                    _code!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 52,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 12,
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
+                  const SizedBox(height: 14),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.timer_outlined, color: _timerColor, size: 18),
+                    const SizedBox(width: 6),
+                    Text(_timerLabel,
+                        style: TextStyle(
+                            color: _timerColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15)),
+                  ]),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _copyCode,
+              icon: const Icon(Icons.copy, size: 18),
+              label: const Text('Copiază codul'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1A5276),
+                side: const BorderSide(color: Color(0xFF1A5276)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ] else if (_expired) ...[
+            _expiredCard(),
+          ] else ...[
+            Container(
+              height: 120,
+              alignment: Alignment.center,
+              child: Text(
+                'Apasă butonul pentru a genera un cod',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
 
-          const SizedBox(height: 12),
-          Text(
-            'Codul expiră după 5 minute.',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-          ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 32),
 
           SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
-              onPressed:
-                  (_isCodeComplete && !_loadingCode) ? _redeemCode : null,
+              onPressed: _loadingCode ? null : _generateCode,
               icon: _loadingCode
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.link),
+                  : Icon(_code != null && !_expired
+                      ? Icons.refresh
+                      : Icons.generating_tokens),
               label: Text(
-                _loadingCode ? 'Se verifică...' : 'Conectează-te',
+                _code != null && !_expired
+                    ? 'Regenerează codul'
+                    : 'Generează cod',
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
@@ -284,67 +323,33 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () {
-              for (final c in _digitControllers) c.clear();
-              _focusNodes[0].requestFocus();
-            },
-            child: const Text('Șterge', style: TextStyle(color: Colors.grey)),
-          ),
-          if (_errorMessage != null) ...[
+
+          // REQ-9: Inline error below the generate button
+          if (_codeError != null) ...[
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.red.shade800, fontWeight: FontWeight.w500),
-              ),
-            ),
+            _inlineErrorWidget(_codeError!,
+                onDismiss: () => setState(() => _codeError = null)),
           ],
         ],
       ),
     );
   }
 
-  // ── Tab 2: Email token ──────────────────────────────────────────────────────
+  // ── Tab 2: Email invite ─────────────────────────────────────────────────────
 
-  Widget _tokenTab() {
-    if (_successToken) return _successView();
-
+  Widget _emailTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.vpn_key_outlined,
-                size: 40, color: Colors.orange),
-          ),
-          const SizedBox(height: 20),
-          const Text('Introdu tokenul din email',
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A5276))),
-          const SizedBox(height: 8),
-          Text(
-            'Copiază tokenul primit în emailul de invitație\nși lipește-l mai jos.',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-            textAlign: TextAlign.center,
+          _howItWorksCard(
+            steps: const [
+              ('1', 'Introdu adresa de email a însoțitorului'),
+              ('2', 'Apasă „Trimite invitație"'),
+              ('3', 'Însoțitorul primește un link pe email'),
+            ],
+            note: 'Link-ul este valabil 24 de ore.',
           ),
           const SizedBox(height: 28),
           Card(
@@ -353,154 +358,285 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
             elevation: 1,
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                TextField(
-                  controller: _tokenCtrl,
-                  autocorrect: false,
-                  maxLines: 2,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                  decoration: InputDecoration(
-                    labelText: 'Token de invitație',
-                    hintText: 'Lipește tokenul aici...',
-                    prefixIcon: const Icon(Icons.vpn_key_outlined,
-                        color: Color(0xFF1A5276)),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300)),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF1A5276), width: 2)),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: _loadingToken ? null : _redeemToken,
-                    icon: _loadingToken
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.link),
-                    label: Text(
-                      _loadingToken ? 'Se verifică...' : 'Acceptă invitația',
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A5276),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Adresa de email',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A5276))),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    onChanged: (_) {
+                      if (_emailError != null)
+                        setState(() => _emailError = null);
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'insotitorul@exemplu.ro',
+                      prefixIcon: const Icon(Icons.email_outlined,
+                          color: Color(0xFF1A5276)),
+                      border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF1A5276), width: 2)),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
                     ),
+                    onSubmitted: (_) => _sendEmailInvite(),
                   ),
-                ),
-
-                // --- MESAJ DE EROARE ---
-                if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    _errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.red.shade800,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _sendingEmail ? null : _sendEmailInvite,
+                      icon: _sendingEmail
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.send_outlined),
+                      label: Text(
+                        _sendingEmail ? 'Se trimite...' : 'Trimite invitație',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A5276),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
+
+                  // REQ-9: Inline error below send button
+                  if (_emailError != null) ...[
+                    const SizedBox(height: 14),
+                    _inlineErrorWidget(_emailError!,
+                        onDismiss: () => setState(() => _emailError = null)),
+                  ],
                 ],
-              ]),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.shade100),
-            ),
-            child: Row(children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade600, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Tokenul se găsește în emailul de invitație, sau pacientul ți-l poate trimite direct.',
-                  style: TextStyle(color: Colors.blue.shade700, fontSize: 13),
-                ),
               ),
-            ]),
+            ),
           ),
+          if (_sentToken != null) ...[
+            const SizedBox(height: 24),
+            _inviteSentCard(),
+          ],
         ],
       ),
     );
   }
 
-  // ── Shared success view ─────────────────────────────────────────────────────
+  // ── Shared widgets ──────────────────────────────────────────────────────────
 
-  Widget _successView() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Column(children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-                color: Colors.green.shade50, shape: BoxShape.circle),
-            child: Icon(Icons.check_circle_outline,
-                size: 60, color: Colors.green.shade600),
+  // REQ-9: Reusable inline error widget
+  Widget _inlineErrorWidget(String message, {VoidCallback? onDismiss}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade300, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.shade100,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(height: 24),
-          const Text('Asociere reușită!',
+        ],
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(
+              color: Colors.red.shade800,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (onDismiss != null)
+          GestureDetector(
+            onTap: onDismiss,
+            child: Icon(Icons.close, color: Colors.red.shade400, size: 18),
+          ),
+      ]),
+    );
+  }
+
+  Widget _howItWorksCard({
+    required List<(String, String)> steps,
+    required String note,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(children: [
+          const Icon(Icons.people_alt_outlined,
+              size: 40, color: Color(0xFF1A5276)),
+          const SizedBox(height: 10),
+          const Text('Cum funcționează?',
               style: TextStyle(
-                  fontSize: 22,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1A5276))),
           const SizedBox(height: 12),
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
+          ...steps.map((s) => _step(s.$1, s.$2)),
+          const SizedBox(height: 6),
+          Text(note,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              textAlign: TextAlign.center),
+        ]),
+      ),
+    );
+  }
+
+  Widget _step(String num, String text) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A5276).withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Text(num,
+                style: const TextStyle(
+                    color: Color(0xFF1A5276),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Text(text,
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14))),
+        ]),
+      );
+
+  Widget _expiredCard() => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Column(children: [
+          Icon(Icons.timer_off_outlined, size: 48, color: Colors.red.shade400),
+          const SizedBox(height: 8),
+          Text('Codul a expirat',
               style: TextStyle(
-                  fontSize: 15, color: Colors.grey.shade700, height: 1.5),
-              children: [
-                const TextSpan(text: 'Ești acum asociat pacientului\n'),
-                TextSpan(
-                  text: _linkedPatientName ?? '',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A5276),
-                      fontSize: 17),
-                ),
-                const TextSpan(
-                    text:
-                        '\n\nPoți acum vedea documentele\nmediale ale acestuia.'),
-              ],
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16)),
+          const SizedBox(height: 4),
+          Text('Generează un cod nou',
+              style: TextStyle(color: Colors.red.shade400, fontSize: 13)),
+        ]),
+      );
+
+  Widget _inviteSentCard() {
+    final sent = _mailSent == true;
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(children: [
+          Icon(
+            sent ? Icons.mark_email_read_outlined : Icons.info_outline,
+            size: 48,
+            color: sent ? Colors.green.shade600 : Colors.orange.shade600,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            sent ? 'Invitație trimisă!' : 'Token generat (email indisponibil)',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: sent ? Colors.green.shade700 : Colors.orange.shade700),
+            textAlign: TextAlign.center,
+          ),
+          if (_emailSentTo != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              sent
+                  ? 'Email trimis la $_emailSentTo'
+                  : 'Trimite manual tokenul de mai jos însoțitorului',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A5276).withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+              border:
+                  Border.all(color: const Color(0xFF1A5276).withOpacity(0.2)),
+            ),
+            child: Column(children: [
+              Text('Token de invitație',
+                  style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 11,
+                      letterSpacing: 0.8)),
+              const SizedBox(height: 6),
+              SelectableText(
+                _sentToken!,
+                style: const TextStyle(
+                    color: Color(0xFF1A5276),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'monospace'),
+                textAlign: TextAlign.center,
+              ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _copyToken,
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('Copiază tokenul'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1A5276),
+              side: const BorderSide(color: Color(0xFF1A5276)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const SizedBox(height: 40),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A5276),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Înapoi la documente',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => setState(() {
+              _sentToken = null;
+              _mailSent = null;
+              _emailSentTo = null;
+            }),
+            child: const Text('Trimite altă invitație',
+                style: TextStyle(color: Colors.grey)),
           ),
         ]),
       ),

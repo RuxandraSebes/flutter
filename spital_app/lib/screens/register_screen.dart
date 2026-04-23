@@ -1,3 +1,7 @@
+// REQ-12: CNP mandatory for both patient and companion on registration
+// REQ-9: Inline error messages below button, not snackbar above keyboard
+// REQ-18: No active/inactive status field
+
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
@@ -21,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  // REQ-12: CNP now mandatory for both patient and companion
   final _cnpController = TextEditingController();
   final _authService = AuthService();
 
@@ -31,6 +36,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late String _selectedRole;
   List<Map<String, dynamic>> _hospitals = [];
   int? _selectedHospitalId;
+
+  // REQ-9: inline error instead of snackbar-above-keyboard
+  String? _inlineError;
 
   @override
   void initState() {
@@ -58,22 +66,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  void _setError(String msg) {
+    setState(() => _inlineError = msg);
+  }
+
+  void _clearError() {
+    if (_inlineError != null) setState(() => _inlineError = null);
+  }
+
   Future<void> _handleRegister() async {
+    _clearError();
+
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    // REQ-12: CNP required for both roles
     final cnp = _cnpController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      _showSnack('Completeaza campurile obligatorii', isError: true);
+    if (name.isEmpty) {
+      _setError('Introdu numele complet.');
+      return;
+    }
+    if (email.isEmpty || !email.contains('@')) {
+      _setError('Introdu o adresă de email validă.');
       return;
     }
     if (password.length < 6) {
-      _showSnack('Parola trebuie sa aiba minim 6 caractere', isError: true);
+      _setError('Parola trebuie să aibă minim 6 caractere.');
       return;
     }
-    if (_selectedRole == 'patient' && cnp.isNotEmpty && cnp.length != 13) {
-      _showSnack('CNP-ul trebuie sa aiba exact 13 cifre', isError: true);
+    // REQ-12: CNP mandatory for patient AND companion
+    if (cnp.isEmpty) {
+      _setError('CNP-ul este obligatoriu. Verifică că ai 13 cifre.');
+      return;
+    }
+    if (cnp.length != 13 || !RegExp(r'^\d{13}$').hasMatch(cnp)) {
+      _setError('CNP-ul trebuie să aibă exact 13 cifre.');
       return;
     }
 
@@ -83,7 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       name: name,
       email: email,
       password: password,
-      cnp: (_selectedRole == 'patient' && cnp.isNotEmpty) ? cnp : null,
+      cnp: cnp,
       role: _selectedRole,
       hospitalId: _selectedHospitalId,
     );
@@ -99,15 +127,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         (_) => false,
       );
     } else {
-      _showSnack(result['message'] ?? 'Eroare la inregistrare', isError: true);
+      _setError(
+          result['message'] ?? 'Eroare la înregistrare. Încearcă din nou.');
     }
-  }
-
-  void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
-    ));
   }
 
   @override
@@ -132,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: const Color(0xFF1A5276))),
               const SizedBox(height: 6),
               Text(
-                'Inregistreaza-te pentru a accesa portalul UPU',
+                'Înregistrează-te pentru a accesa portalul UPU',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: Colors.grey.shade600),
               ),
@@ -146,15 +168,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     value: 'patient'),
                 const SizedBox(width: 12),
                 _roleChip(
-                    label: 'Apartinator',
+                    label: 'Însoțitor',
                     icon: Icons.people_alt_outlined,
                     value: 'companion'),
               ]),
               const SizedBox(height: 8),
               Text(
                 _selectedRole == 'patient'
-                    ? 'Acceseaza si gestioneaza propriile documente medicale'
-                    : 'Vizualizeaza documentele pacientului la care esti asociat',
+                    ? 'Accesează și gestionează propriile documente medicale'
+                    : 'Vizualizează documentele pacientului la care ești asociat',
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
               const SizedBox(height: 20),
@@ -182,7 +204,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
                     _buildField(
                       controller: _passwordController,
-                      label: 'Parola * (min. 6 caractere)',
+                      label: 'Parolă * (min. 6 caractere)',
                       icon: Icons.lock_outline,
                       obscure: _obscurePassword,
                       suffix: IconButton(
@@ -194,18 +216,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
 
-                    // CNP — patients only
-                    if (_selectedRole == 'patient') ...[
-                      const SizedBox(height: 16),
-                      _buildField(
-                        controller: _cnpController,
-                        label: 'CNP (optional — 13 cifre)',
-                        icon: Icons.badge_outlined,
-                        keyboardType: TextInputType.number,
-                        helperText:
-                            'Permite gasirea automata a fiselor UPU din Hipocrate',
-                      ),
-                    ],
+                    // REQ-12: CNP mandatory for BOTH patient and companion
+                    const SizedBox(height: 16),
+                    _buildField(
+                      controller: _cnpController,
+                      label: 'CNP * (13 cifre)',
+                      icon: Icons.badge_outlined,
+                      keyboardType: TextInputType.number,
+                      helperText: _selectedRole == 'patient'
+                          ? 'Necesar pentru identificarea fișelor UPU din Hipocrate'
+                          : 'Necesar pentru identificarea corectă în sistemul spitalului',
+                    ),
 
                     // ── Hospital picker ────────────────────────────────────────
                     const SizedBox(height: 16),
@@ -232,7 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Nu s-au putut incarca spitalele. Poti selecta ulterior din profil.',
+                                      'Nu s-au putut încărca spitalele. Poți selecta ulterior din profil.',
                                       style: TextStyle(
                                           color: Colors.orange.shade800,
                                           fontSize: 12),
@@ -243,7 +264,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             : DropdownButtonFormField<int?>(
                                 value: _selectedHospitalId,
                                 decoration: InputDecoration(
-                                  labelText: 'Spital (optional)',
+                                  labelText: 'Spital (opțional)',
                                   prefixIcon: const Icon(
                                       Icons.local_hospital_outlined,
                                       color: Color(0xFF1A5276)),
@@ -260,7 +281,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   filled: true,
                                   fillColor: Colors.grey.shade50,
                                   helperText:
-                                      'Selecteaza spitalul la care ai mers',
+                                      'Selectează spitalul la care ai mers',
                                 ),
                                 items: [
                                   const DropdownMenuItem<int?>(
@@ -281,6 +302,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
 
                     const SizedBox(height: 28),
+
+                    // Register button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -298,16 +321,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: Colors.white))
-                            : const Text('Creeaza cont',
+                            : const Text('Creează cont',
                                 style: TextStyle(
                                     fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
+
+                    // REQ-9: Inline error BELOW the button
+                    if (_inlineError != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: Colors.red.shade300, width: 1.5),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.error_outline,
+                                color: Colors.red.shade700, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _inlineError!,
+                                style: TextStyle(
+                                  color: Colors.red.shade800,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ]),
                 ),
               ),
 
-              // Companion tip
+              // Info tip for companion
               if (_selectedRole == 'companion') ...[
                 const SizedBox(height: 16),
                 Container(
@@ -317,14 +376,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.orange.withOpacity(0.3)),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.info_outline,
-                        color: Colors.orange, size: 18),
-                    const SizedBox(width: 10),
-                    const Expanded(
+                  child: const Row(children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                    SizedBox(width: 10),
+                    Expanded(
                       child: Text(
-                        'Dupa inregistrare, cere pacientului un cod de 6 cifre '
-                        'sau un token de invitatie pentru a te asocia dosarului sau.',
+                        'După înregistrare, cere pacientului un cod de 6 cifre '
+                        'sau un token de invitație pentru a te asocia dosarului său.',
                         style:
                             TextStyle(fontSize: 13, color: Colors.deepOrange),
                       ),
@@ -337,7 +395,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Ai deja cont? Logheaza-te',
+                  child: const Text('Ai deja cont? Loghează-te',
                       style: TextStyle(color: Color(0xFF1A5276))),
                 ),
               ),
@@ -354,7 +412,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final selected = _selectedRole == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedRole = value),
+        onTap: () {
+          _clearError();
+          setState(() => _selectedRole = value);
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -395,6 +456,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
+      onChanged: (_) => _clearError(),
       decoration: InputDecoration(
         labelText: label,
         helperText: helperText,

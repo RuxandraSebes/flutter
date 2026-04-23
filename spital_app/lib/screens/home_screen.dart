@@ -4,7 +4,8 @@
 // REQ-4: "Aparținător" → "Însoțitor" everywhere
 // REQ-5: Patient can view and remove companions
 // REQ-6: Companion can view and remove linked patients
-// REQ-9: Improved error message visibility (centered, longer duration)
+// REQ-9: Improved error message visibility (centered inline, below buttons, longer duration)
+// REQ-11: Companion patient-picker shown as centered dialog with message count
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -34,6 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingDocs = true;
   bool _uploading = false;
   int _unreadMessages = 0;
+
+  // REQ-9: inline error state instead of snackbar-above-keyboard
+  String? _inlineError;
 
   @override
   void initState() {
@@ -77,21 +81,21 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _uploading = false);
 
     if (response['success'] == true) {
-      _showSnack('Upload reusit');
+      _clearInlineError();
+      _showSnack('Upload reușit');
       await _fetchDocuments();
     } else {
-      // REQ-9: centered, longer error
-      _showError(response['message'] ?? 'Eroare la upload');
+      _setInlineError(response['message'] ?? 'Eroare la upload');
     }
   }
 
   // REQ-2: Swipe to delete with confirmation
   Future<void> _deleteDocument(int id, String name) async {
+    _clearInlineError();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        // REQ-9: centered
-        title: const Text('Sterge document', textAlign: TextAlign.center),
+        title: const Text('Șterge document', textAlign: TextAlign.center),
         content: Text('Ești sigur că vrei să ștergi "$name"?',
             textAlign: TextAlign.center),
         actionsAlignment: MainAxisAlignment.center,
@@ -113,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _showSnack('Document șters');
       await _fetchDocuments();
     } else {
-      _showError('Eroare la ștergere');
+      _setInlineError('Eroare la ștergere. Încearcă din nou.');
     }
   }
 
@@ -140,25 +144,18 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
-  // REQ-9: Centered, longer-duration error snackbar
-  void _showError(String msg) {
+  // REQ-9: Set inline error below content
+  void _setInlineError(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Center(
-        child: Text(
-          msg,
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
-          textAlign: TextAlign.center,
-        ),
-      ),
-      backgroundColor: Colors.red.shade700,
-      duration: const Duration(seconds: 5), // REQ-9: longer
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    setState(() => _inlineError = msg);
+    // Auto-clear after 6 seconds
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _inlineError = null);
+    });
+  }
+
+  void _clearInlineError() {
+    if (mounted) setState(() => _inlineError = null);
   }
 
   void _showSnack(String msg) {
@@ -172,18 +169,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openGenerateCode() {
+    _clearInlineError();
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => const GenerateAccessCodeScreen()));
   }
 
   Future<void> _openRedeemCode() async {
+    _clearInlineError();
     final result = await Navigator.push<bool>(context,
         MaterialPageRoute(builder: (_) => const RedeemAccessCodeScreen()));
     if (result == true) _fetchDocuments();
   }
 
-  // REQ-5 & REQ-6: Open companion/patient management screen
   void _openRelationships() {
+    _clearInlineError();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -193,6 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openChat() async {
+    _clearInlineError();
     final u = widget.user;
     if (u.isPatient) {
       Navigator.push(
@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final convs = await _chatService.getConversations();
       if (!mounted) return;
       if (convs.isEmpty) {
-        _showError('Nu ești asociat niciunui pacient');
+        _setInlineError('Nu ești asociat niciunui pacient');
         return;
       }
       if (convs.length == 1) {
@@ -226,48 +226,174 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ).then((_) => _fetchUnread());
       } else {
-        _showPatientPicker(convs);
+        // REQ-11: Centered dialog instead of bottom sheet
+        _showPatientPickerDialog(convs);
       }
     }
   }
 
-  void _showPatientPicker(List<Map<String, dynamic>> patients) {
-    showModalBottomSheet(
+  // REQ-11: Centered dialog with message count per conversation
+  void _showPatientPickerDialog(List<Map<String, dynamic>> patients) {
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Selectează pacientul',
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 16,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A5276).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.chat_bubble_outline,
+                    color: Color(0xFF1A5276), size: 28),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Selectează conversația',
                 style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: Color(0xFF1A5276))),
-          ),
-          ...patients.map((p) => ListTile(
-                leading: const CircleAvatar(
-                    backgroundColor: Color(0xFF1A5276),
-                    child: Icon(Icons.person, color: Colors.white, size: 18)),
-                title: Text(p['patient_name'] ?? ''),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        currentUser: widget.user,
-                        patientId: p['patient_id'],
-                        patientName: p['patient_name'] ?? '',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A5276),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Alege cu ce pacient vrei să conversezi',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // Patient list
+              ...patients.map((p) {
+                final unread = (p['unread_count'] ?? 0) as int;
+                // REQ-11: show total message count
+                final total = (p['total_count'] ?? 0) as int;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              currentUser: widget.user,
+                              patientId: p['patient_id'],
+                              patientName: p['patient_name'] ?? '',
+                            ),
+                          ),
+                        ).then((_) => _fetchUnread());
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A5276).withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFF1A5276).withOpacity(0.15),
+                          ),
+                        ),
+                        child: Row(children: [
+                          CircleAvatar(
+                            backgroundColor:
+                                const Color(0xFF1A5276).withOpacity(0.12),
+                            child: const Icon(Icons.person,
+                                color: Color(0xFF1A5276), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p['patient_name'] ?? '',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: Color(0xFF2C3E50),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                // REQ-11: total messages shown
+                                Row(children: [
+                                  Icon(Icons.chat_bubble_outline,
+                                      size: 12, color: Colors.grey.shade400),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    total == 0
+                                        ? 'Niciun mesaj'
+                                        : '$total mesaj${total == 1 ? '' : 'e'}',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade500),
+                                  ),
+                                  if (p['last_message'] != null) ...[
+                                    Text(' · ',
+                                        style: TextStyle(
+                                            color: Colors.grey.shade400)),
+                                    Expanded(
+                                      child: Text(
+                                        p['last_message'],
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade500),
+                                      ),
+                                    ),
+                                  ],
+                                ]),
+                              ],
+                            ),
+                          ),
+                          if (unread > 0) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A5276),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '$unread',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ] else
+                            const Icon(Icons.chevron_right,
+                                color: Color(0xFF1A5276)),
+                        ]),
                       ),
                     ),
-                  ).then((_) => _fetchUnread());
-                },
-              )),
-          const SizedBox(height: 16),
-        ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Anulează',
+                    style: TextStyle(color: Colors.grey.shade500)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -284,16 +410,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(u.name,
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          // REQ-4: "Aparținător" → "Însoțitor" via UserModel.roleLabel
           Text(u.roleLabel,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
           if (u.isPatient)
             IconButton(
-              // REQ-3: person_add icon replaces old grant-access icon
               icon: const Icon(Icons.person_add_outlined),
-              // REQ-4: updated tooltip
               tooltip: 'Oferă acces însoțitor',
               onPressed: _openGenerateCode,
             ),
@@ -303,7 +426,6 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: 'Introdu cod pacient',
               onPressed: _openRedeemCode,
             ),
-          // REQ-5 & REQ-6: manage relationships
           if (u.isPatient || u.isCompanion)
             IconButton(
               icon: const Icon(Icons.manage_accounts_outlined),
@@ -358,9 +480,12 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : null,
       body: Column(children: [
-        // REQ-4: updated banner text
         if (u.isPatient) _patientAccessBanner(),
         if (u.isCompanion) _companionAccessBanner(),
+
+        // REQ-9: Inline error banner shown below banners, above list
+        if (_inlineError != null) _inlineErrorBanner(_inlineError!),
+
         Expanded(
           child: RefreshIndicator(
             onRefresh: _fetchDocuments,
@@ -372,6 +497,47 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? _emptyState(u)
                     : _buildList(u),
           ),
+        ),
+      ]),
+    );
+  }
+
+  // REQ-9: Inline error banner widget
+  Widget _inlineErrorBanner(String message) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.red.shade300, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.shade100,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        Icon(Icons.error_outline, color: Colors.red.shade700, size: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(
+              color: Colors.red.shade800,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        GestureDetector(
+          onTap: _clearInlineError,
+          child: Icon(Icons.close, color: Colors.red.shade400, size: 18),
         ),
       ]),
     );
@@ -389,7 +555,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF1A5276).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              // REQ-3: person_add icon
               child: const Icon(Icons.person_add_outlined,
                   color: Color(0xFF1A5276), size: 22),
             ),
@@ -398,7 +563,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // REQ-4: "Însoțitor"
                     Text('Oferă acces însoțitor',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -461,7 +625,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.grey.shade600)),
             const SizedBox(height: 8),
             Text(
-              // REQ-4: "Însoțitor"
               u.isCompanion
                   ? 'Asociază-te cu un pacient pentru a vedea documentele'
                   : 'Nu ai documente încărcate',
@@ -477,7 +640,6 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: _documents.length,
         itemBuilder: (context, i) {
           final doc = _documents[i];
-          // REQ-1 & REQ-2: tap row to open, swipe to delete
           return _SwipeToDeleteDocCard(
             doc: doc,
             canDelete: u.isPatient,
@@ -492,8 +654,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 }
 
-// REQ-1: Entire row opens PDF (no separate view icon)
-// REQ-2: Swipe left to reveal delete with confirmation
 class _SwipeToDeleteDocCard extends StatelessWidget {
   final Map<String, dynamic> doc;
   final VoidCallback onOpen;
@@ -513,7 +673,6 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      // REQ-1: entire row tappable — no separate view icon button
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onOpen,
@@ -549,14 +708,12 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
                               color: Colors.grey.shade600, fontSize: 12)),
                   ]),
             ),
-            // REQ-1: simple chevron to indicate tappable (no extra icon button)
             const Icon(Icons.chevron_right, color: Color(0xFF1A5276), size: 20),
           ]),
         ),
       ),
     );
 
-    // REQ-2: Dismissible for swipe-to-delete (patients only)
     if (!canDelete) return card;
 
     return Dismissible(
@@ -583,12 +740,10 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
           ],
         ),
       ),
-      // REQ-2: confirm before delete
       confirmDismiss: (_) async {
         return await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            // REQ-9: centered
             title: const Text('Șterge document', textAlign: TextAlign.center),
             content: Text(
               'Ești sigur că vrei să ștergi\n"${doc['name']}"?',
