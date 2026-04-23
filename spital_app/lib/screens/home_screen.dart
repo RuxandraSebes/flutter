@@ -1,16 +1,23 @@
+// REQ-1: Open PDF on row click (removed separate view icon)
+// REQ-2: Swipe to delete PDF with confirmation
+// REQ-3: person_add icon for Grant Access
+// REQ-4: "Aparținător" → "Însoțitor" everywhere
+// REQ-5: Patient can view and remove companions
+// REQ-6: Companion can view and remove linked patients
+// REQ-9: Improved error message visibility (centered, longer duration)
+
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import '../services/chat_service.dart';
-import '../services/access_code_service.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'generate_access_code_screen.dart';
 import 'redeem_access_code_screen.dart';
 import 'chat_screen.dart';
-import 'my_companions_screen.dart'; // REQ-5 & REQ-6
+import 'my_companions_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final UserModel user;
@@ -27,9 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingDocs = true;
   bool _uploading = false;
   int _unreadMessages = 0;
-
-  // REQ-9: error message controller
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -76,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _showSnack('Upload reusit');
       await _fetchDocuments();
     } else {
-      // REQ-9: More visible error
+      // REQ-9: centered, longer error
       _showError(response['message'] ?? 'Eroare la upload');
     }
   }
@@ -86,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        // REQ-9: centered dialog
+        // REQ-9: centered
         title: const Text('Sterge document', textAlign: TextAlign.center),
         content: Text('Ești sigur că vrei să ștergi "$name"?',
             textAlign: TextAlign.center),
@@ -136,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
-  // REQ-9: Centered, more visible error with longer duration
+  // REQ-9: Centered, longer-duration error snackbar
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -150,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       backgroundColor: Colors.red.shade700,
-      duration: const Duration(seconds: 5), // REQ-9: longer display
+      duration: const Duration(seconds: 5), // REQ-9: longer
       behavior: SnackBarBehavior.floating,
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -190,7 +194,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openChat() async {
     final u = widget.user;
-
     if (u.isPatient) {
       Navigator.push(
         context,
@@ -204,7 +207,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ).then((_) => _fetchUnread());
       return;
     }
-
     if (u.isCompanion) {
       final convs = await _chatService.getConversations();
       if (!mounted) return;
@@ -282,14 +284,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(u.name,
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          // REQ-4: "Aparținător" → "Însoțitor" in role label (handled in UserModel)
+          // REQ-4: "Aparținător" → "Însoțitor" via UserModel.roleLabel
           Text(u.roleLabel,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
           if (u.isPatient)
             IconButton(
-              icon: const Icon(Icons.people_alt_outlined),
+              // REQ-3: person_add icon replaces old grant-access icon
+              icon: const Icon(Icons.person_add_outlined),
               // REQ-4: updated tooltip
               tooltip: 'Oferă acces însoțitor',
               onPressed: _openGenerateCode,
@@ -300,11 +303,10 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: 'Introdu cod pacient',
               onPressed: _openRedeemCode,
             ),
-          // REQ-5 & REQ-6: Manage relationships button
+          // REQ-5 & REQ-6: manage relationships
           if (u.isPatient || u.isCompanion)
             IconButton(
-              // REQ-3: person_add icon for companion management
-              icon: const Icon(Icons.person_add_outlined),
+              icon: const Icon(Icons.manage_accounts_outlined),
               tooltip: u.isPatient ? 'Însoțitorii mei' : 'Pacienții mei',
               onPressed: _openRelationships,
             ),
@@ -356,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : null,
       body: Column(children: [
-        // REQ-4: "aparținător" → "însoțitor" in banners
+        // REQ-4: updated banner text
         if (u.isPatient) _patientAccessBanner(),
         if (u.isCompanion) _companionAccessBanner(),
         Expanded(
@@ -387,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF1A5276).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              // REQ-3: person_add icon for granting access
+              // REQ-3: person_add icon
               child: const Icon(Icons.person_add_outlined,
                   color: Color(0xFF1A5276), size: 22),
             ),
@@ -396,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // REQ-4: "Aparținător" → "Însoțitor"
+                    // REQ-4: "Însoțitor"
                     Text('Oferă acces însoțitor',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -459,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.grey.shade600)),
             const SizedBox(height: 8),
             Text(
-              // REQ-4: "Aparținător" → "Însoțitor"
+              // REQ-4: "Însoțitor"
               u.isCompanion
                   ? 'Asociază-te cu un pacient pentru a vedea documentele'
                   : 'Nu ai documente încărcate',
@@ -475,11 +477,10 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: _documents.length,
         itemBuilder: (context, i) {
           final doc = _documents[i];
-          // REQ-2: Swipe to delete
+          // REQ-1 & REQ-2: tap row to open, swipe to delete
           return _SwipeToDeleteDocCard(
             doc: doc,
             canDelete: u.isPatient,
-            // REQ-1: tap anywhere on row to open PDF (no separate view icon)
             onOpen: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -491,7 +492,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 }
 
-// ── REQ-1 & REQ-2: Card that opens PDF on tap, swipe-left to delete ──────────
+// REQ-1: Entire row opens PDF (no separate view icon)
+// REQ-2: Swipe left to reveal delete with confirmation
 class _SwipeToDeleteDocCard extends StatelessWidget {
   final Map<String, dynamic> doc;
   final VoidCallback onOpen;
@@ -511,7 +513,7 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      // REQ-1: entire row is tappable to open PDF — no separate view icon
+      // REQ-1: entire row tappable — no separate view icon button
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onOpen,
@@ -547,14 +549,14 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
                               color: Colors.grey.shade600, fontSize: 12)),
                   ]),
             ),
-            // REQ-1: small open indicator instead of a dedicated icon button
+            // REQ-1: simple chevron to indicate tappable (no extra icon button)
             const Icon(Icons.chevron_right, color: Color(0xFF1A5276), size: 20),
           ]),
         ),
       ),
     );
 
-    // REQ-2: wrap with Dismissible for swipe-to-delete (patients only)
+    // REQ-2: Dismissible for swipe-to-delete (patients only)
     if (!canDelete) return card;
 
     return Dismissible(
@@ -581,11 +583,12 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
           ],
         ),
       ),
+      // REQ-2: confirm before delete
       confirmDismiss: (_) async {
-        // REQ-2: confirmation before delete
         return await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
+            // REQ-9: centered
             title: const Text('Șterge document', textAlign: TextAlign.center),
             content: Text(
               'Ești sigur că vrei să ștergi\n"${doc['name']}"?',

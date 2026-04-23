@@ -1,9 +1,10 @@
+// REQ-11: Centered popup with number of messages per conversation
+
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../models/user_model.dart';
 import 'chat_screen.dart';
 
-/// REQ-11: Centered popup with message count per conversation.
 class ChatConversationsScreen extends StatefulWidget {
   final UserModel currentUser;
 
@@ -45,7 +46,7 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
         foregroundColor: Colors.white,
         title:
             const Text('Mesaje', style: TextStyle(fontWeight: FontWeight.w600)),
-        // REQ-11: centered title via centerTitle
+        // REQ-11: centered title
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
@@ -64,6 +65,7 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                     itemBuilder: (_, i) {
                       final conv = _conversations[i];
                       final unread = (conv['unread_count'] ?? 0) as int;
+                      // REQ-11: show total message count per conversation
                       final total = (conv['total_count'] ?? 0) as int;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),

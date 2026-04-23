@@ -1,3 +1,5 @@
+// REQ-4: Renamed "Aparținător" → "Însoțitor" in roleLabel
+
 class UserModel {
   final int id;
   final String name;

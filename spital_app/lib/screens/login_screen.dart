@@ -70,14 +70,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                      color: const Color(0xFF1A5276),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: const Icon(Icons.local_hospital,
-                      color: Colors.white, size: 40),
+                Image.asset(
+                  'assets/logo.png',
+                  height: 120, // Poți ajusta înălțimea aici
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 20),
                 Text('Spital Vișeu de Sus',

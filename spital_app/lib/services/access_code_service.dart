@@ -1,3 +1,6 @@
+// REQ-5: Patient can list and remove their companions (getMyCompanions, unlinkCompanion)
+// REQ-6: Companion can list and remove linked patients (getMyPatients, unlinkPatient)
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
@@ -17,7 +20,6 @@ class AccessCodeService {
 
   // ── Numeric code ────────────────────────────────────────────────────────────
 
-  /// Patient generates a 6-digit code (valid 5 minutes).
   Future<Map<String, dynamic>> generateCode() async {
     try {
       final r = await http.post(
@@ -38,7 +40,6 @@ class AccessCodeService {
     }
   }
 
-  /// Companion redeems a 6-digit code → linked to patient.
   Future<Map<String, dynamic>> redeemCode(String code) async {
     try {
       final r = await http.post(
@@ -62,7 +63,6 @@ class AccessCodeService {
 
   // ── Email invitation ────────────────────────────────────────────────────────
 
-  /// Patient sends an email invite (valid 24 hours).
   Future<Map<String, dynamic>> sendEmailInvite(String email) async {
     try {
       final r = await http.post(
@@ -85,7 +85,6 @@ class AccessCodeService {
     }
   }
 
-  /// Companion redeems an email invite token → linked to patient.
   Future<Map<String, dynamic>> redeemEmailInvite(String token) async {
     try {
       final r = await http.post(
@@ -107,8 +106,9 @@ class AccessCodeService {
     }
   }
 
-  // ── Companion management (patient POV) ──────────────────────────────────────
+  // ── REQ-5: Companion management (patient POV) ──────────────────────────────
 
+  /// Patient: get list of linked companions
   Future<List<Map<String, dynamic>>> getMyCompanions() async {
     try {
       final r = await http.get(
@@ -123,10 +123,41 @@ class AccessCodeService {
     return [];
   }
 
+  /// Patient: remove a companion link
   Future<bool> unlinkCompanion(int companionId) async {
     try {
       final r = await http.delete(
         Uri.parse('$_base/my-companions/$companionId'),
+        headers: await _headers(),
+      );
+      return r.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── REQ-6: Patient management (companion POV) ──────────────────────────────
+
+  /// Companion: get list of linked patients
+  Future<List<Map<String, dynamic>>> getMyPatients() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$_base/my-patients'),
+        headers: await _headers(),
+      );
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body);
+        return List<Map<String, dynamic>>.from(data['patients']);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Companion: remove a patient link
+  Future<bool> unlinkPatient(int patientId) async {
+    try {
+      final r = await http.delete(
+        Uri.parse('$_base/my-patients/$patientId'),
         headers: await _headers(),
       );
       return r.statusCode == 200;

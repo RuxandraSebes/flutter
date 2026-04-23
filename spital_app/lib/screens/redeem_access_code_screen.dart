@@ -28,6 +28,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
   // ── Shared success state ────────────────────────────────────────────────────
   String? _linkedPatientName;
 
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +53,10 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
 
   Future<void> _redeemCode() async {
     if (!_isCodeComplete) return;
-    setState(() => _loadingCode = true);
+    setState(() {
+      _loadingCode = true;
+      _errorMessage = null; // Resetăm eroarea la un nou început
+    });
 
     final result = await _service.redeemCode(_fullCode);
     if (!mounted) return;
@@ -63,9 +68,12 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
         _linkedPatientName = result['patient']?['name'] ?? 'Pacient';
       });
     } else {
-      for (final c in _digitControllers) c.clear();
-      _focusNodes[0].requestFocus();
-      _snack(result['message'] ?? 'Cod invalid sau expirat', isError: true);
+      // În loc de _snack, setăm _errorMessage
+      setState(() {
+        _errorMessage = result['message'] ?? 'Cod invalid sau expirat';
+        for (final c in _digitControllers) c.clear();
+        _focusNodes[0].requestFocus();
+      });
     }
   }
 
@@ -95,14 +103,20 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
 
   Future<void> _redeemToken() async {
     final token = _tokenCtrl.text.trim();
+
     if (token.isEmpty) {
-      _snack('Introdu tokenul de invitație', isError: true);
+      setState(() => _errorMessage = 'Introdu tokenul de invitație');
       return;
     }
-    setState(() => _loadingToken = true);
+
+    setState(() {
+      _loadingToken = true;
+      _errorMessage = null; // Resetăm eroarea veche
+    });
 
     final result = await _service.redeemEmailInvite(token);
     if (!mounted) return;
+
     setState(() => _loadingToken = false);
 
     if (result['success'] == true) {
@@ -111,7 +125,10 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
         _linkedPatientName = result['patient']?['name'] ?? 'Pacient';
       });
     } else {
-      _snack(result['message'] ?? 'Token invalid sau expirat', isError: true);
+      // Setăm mesajul primit de la server sau unul generic
+      setState(() {
+        _errorMessage = result['message'] ?? 'Token invalid sau expirat';
+      });
     }
   }
 
@@ -275,6 +292,23 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
             },
             child: const Text('Șterge', style: TextStyle(color: Colors.grey)),
           ),
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.red.shade800, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -369,6 +403,20 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
                     ),
                   ),
                 ),
+
+                // --- MESAJ DE EROARE ---
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.red.shade800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ]),
             ),
           ),

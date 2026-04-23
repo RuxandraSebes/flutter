@@ -1,4 +1,5 @@
 <?php
+// REQ-11: Added total_count (total messages per conversation) to conversations endpoint
 
 namespace App\Http\Controllers;
 
@@ -6,34 +7,17 @@ use App\Models\ChatMessage;
 use App\Models\User;
 use Illuminate\Http\Request;
 
-/**
- * ChatController
- *
- * Handles messaging between companions/patients and doctors.
- *
- * Conversation model: a conversation is identified by the pair (patient_id, doctor_id).
- * Companions see the same conversation as the patient they are linked to.
- *
- * Endpoints:
- *   GET  /api/chat/conversations          — list conversations for current user
- *   GET  /api/chat/messages?patient_id=X  — get messages for a conversation
- *   POST /api/chat/messages               — send a message
- *   POST /api/chat/messages/{id}/read     — mark messages as read
- */
 class ChatController extends Controller
 {
     /**
      * List conversations.
-     * - Doctor/admin: each patient they have messages with
-     * - Patient: their conversation thread
-     * - Companion: conversation threads of their linked patients
+     * REQ-11: each conversation now includes total_count (total messages in thread).
      */
     public function conversations(Request $request)
     {
         $user = $request->user();
 
         if ($user->isDoctor() || $user->isHospitalAdmin() || $user->isGlobalAdmin()) {
-            // Show all patients who have at least one message
             $patientIds = ChatMessage::select('patient_id')
                 ->distinct()
                 ->pluck('patient_id');
@@ -47,9 +31,12 @@ class ChatController extends Controller
                         ->first();
 
                     $unread = ChatMessage::where('patient_id', $patient->id)
-                        ->where('sender_role', 'patient_side') // messages FROM patient/companion
+                        ->where('sender_role', 'patient_side')
                         ->whereNull('read_at')
                         ->count();
+
+                    // REQ-11: total message count for this conversation
+                    $total = ChatMessage::where('patient_id', $patient->id)->count();
 
                     return [
                         'patient_id'   => $patient->id,
@@ -57,6 +44,7 @@ class ChatController extends Controller
                         'last_message' => $lastMsg ? $lastMsg->message : null,
                         'last_time'    => $lastMsg ? $lastMsg->created_at->toIso8601String() : null,
                         'unread_count' => $unread,
+                        'total_count'  => $total, // REQ-11
                     ];
                 });
 
@@ -73,6 +61,9 @@ class ChatController extends Controller
                 ->whereNull('read_at')
                 ->count();
 
+            // REQ-11: total count
+            $total = ChatMessage::where('patient_id', $user->id)->count();
+
             return response([
                 'conversations' => [[
                     'patient_id'   => $user->id,
@@ -80,6 +71,7 @@ class ChatController extends Controller
                     'last_message' => $lastMsg?->message,
                     'last_time'    => $lastMsg?->created_at->toIso8601String(),
                     'unread_count' => $unread,
+                    'total_count'  => $total, // REQ-11
                 ]],
             ], 200);
         }
@@ -103,12 +95,16 @@ class ChatController extends Controller
                     ->whereNull('read_at')
                     ->count();
 
+                // REQ-11: total count
+                $total = ChatMessage::where('patient_id', $patientId)->count();
+
                 $conversations[] = [
                     'patient_id'   => $patientId,
                     'patient_name' => $patient->name,
                     'last_message' => $lastMsg?->message,
                     'last_time'    => $lastMsg?->created_at->toIso8601String(),
                     'unread_count' => $unread,
+                    'total_count'  => $total, // REQ-11
                 ];
             }
 
@@ -120,7 +116,6 @@ class ChatController extends Controller
 
     /**
      * Get messages for a conversation.
-     * Requires patient_id query parameter.
      */
     public function messages(Request $request)
     {
@@ -131,7 +126,6 @@ class ChatController extends Controller
         $user      = $request->user();
         $patientId = (int) $request->query('patient_id');
 
-        // Access control
         if (! $this->canAccessConversation($user, $patientId)) {
             return response(['message' => 'Acces interzis'], 403);
         }
@@ -141,7 +135,6 @@ class ChatController extends Controller
             ->get()
             ->map(fn($m) => $this->formatMessage($m));
 
-        // Mark doctor-side messages as read for patient/companion
         if ($user->isPatient() || $user->isCompanion()) {
             ChatMessage::where('patient_id', $patientId)
                 ->where('sender_role', 'doctor_side')
@@ -149,7 +142,6 @@ class ChatController extends Controller
                 ->update(['read_at' => now()]);
         }
 
-        // Mark patient-side messages as read for doctor/admin
         if ($user->isDoctor() || $user->isHospitalAdmin() || $user->isGlobalAdmin()) {
             ChatMessage::where('patient_id', $patientId)
                 ->where('sender_role', 'patient_side')
@@ -162,9 +154,6 @@ class ChatController extends Controller
 
     /**
      * Send a message.
-     *
-     * Body: { patient_id, message }
-     * sender_role is determined automatically from the authenticated user's role.
      */
     public function send(Request $request)
     {
@@ -185,7 +174,6 @@ class ChatController extends Controller
             return response(['message' => 'patient_id nu apartine unui pacient'], 422);
         }
 
-        // Determine side
         $senderRole = ($user->isPatient() || $user->isCompanion())
             ? 'patient_side'
             : 'doctor_side';
@@ -201,25 +189,20 @@ class ChatController extends Controller
         return response(['message' => $this->formatMessage($msg)], 201);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private function canAccessConversation(User $user, int $patientId): bool
     {
         if ($user->isGlobalAdmin() || $user->isHospitalAdmin() || $user->isDoctor()) {
             return true;
         }
-
         if ($user->isPatient()) {
             return $user->id === $patientId;
         }
-
         if ($user->isCompanion()) {
             return $user->patients()
                 ->wherePivot('can_view_documents', true)
                 ->where('users.id', $patientId)
                 ->exists();
         }
-
         return false;
     }
 
@@ -230,7 +213,7 @@ class ChatController extends Controller
             'patient_id'  => $m->patient_id,
             'sender_id'   => $m->sender_id,
             'sender_name' => $m->sender_name,
-            'sender_role' => $m->sender_role, // 'patient_side' | 'doctor_side'
+            'sender_role' => $m->sender_role,
             'message'     => $m->message,
             'read_at'     => $m->read_at?->toIso8601String(),
             'created_at'  => $m->created_at->toIso8601String(),

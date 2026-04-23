@@ -1,9 +1,11 @@
+// REQ-10: Messages clearly indicate who is companion, patient, or doctor
+// REQ-9: Centered, longer error messages
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../models/user_model.dart';
 
-/// REQ-10: Messages clearly indicate who is companion, patient, or doctor.
 class ChatScreen extends StatefulWidget {
   final UserModel currentUser;
   final int patientId;
@@ -83,7 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (result['success'] == true) {
       await _loadMessages(silent: true);
     } else {
-      // REQ-9: centered, visible error
+      // REQ-9: centered, visible, longer error
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Center(
           child: Text(result['error'] ?? 'Eroare la trimitere',
@@ -105,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return msg['sender_id'] == widget.currentUser.id;
   }
 
-  // REQ-10: Determine the display role label from sender context
+  // REQ-10: Determine display role label from sender context
   String _senderRoleLabel(Map<String, dynamic> msg) {
     final senderRole = msg['sender_role'] ?? '';
     final senderId = msg['sender_id'];
@@ -113,9 +115,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (senderRole == 'doctor_side') {
       return 'Medic';
     }
-
-    // patient_side: could be patient or companion
-    // We know the patientId — if sender is the patient, label "Pacient", else "Însoțitor"
+    // patient_side: patient or companion
     if (senderId == widget.patientId) {
       return 'Pacient';
     }
@@ -175,9 +175,8 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       body: Column(children: [
-        // REQ-10: legend strip showing participant roles
+        // REQ-10: Legend strip explaining the 3 participant roles
         _roleLegend(),
-
         Expanded(
           child: _loading
               ? const Center(
@@ -198,13 +197,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
         ),
-
         _inputBar(),
       ]),
     );
   }
 
-  /// REQ-10: Small legend at the top clarifying the 3 roles
+  // REQ-10: Legend bar at the top showing all 3 roles with color codes
   Widget _roleLegend() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -305,15 +303,11 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
         const SizedBox(height: 12),
-        Text(
-          'Niciun mesaj încă.',
-          style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-        ),
+        Text('Niciun mesaj încă.',
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
         const SizedBox(height: 6),
-        Text(
-          'Fii primul care trimite un mesaj.',
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-        ),
+        Text('Fii primul care trimite un mesaj.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
       ]),
     );
   }
@@ -323,7 +317,7 @@ class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> msg;
   final bool isMine;
   final bool showSenderName;
-  // REQ-10: role-based display
+  // REQ-10: role-based display fields
   final String roleLabel;
   final Color roleColor;
   final IconData roleIcon;
@@ -349,7 +343,7 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment:
             isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // REQ-10: show role badge for all non-mine messages
+          // REQ-10: role badge for non-mine messages
           if (showSenderName)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 4),
@@ -362,8 +356,8 @@ class _MessageBubble extends StatelessWidget {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(roleIcon, size: 12, color: roleColor),
                   const SizedBox(width: 4),
+                  // REQ-10: "Role · Name" format
                   Text(
-                    // REQ-10: show both role and name, e.g. "Medic · Dr. Popescu"
                     '$roleLabel · ${msg['sender_name'] ?? ''}',
                     style: TextStyle(
                       fontSize: 11,

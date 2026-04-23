@@ -1,8 +1,12 @@
+// REQ-12: CNP displayed alongside patient name in Hospital Admin
+// REQ-13: Relationship field removed from companion link dialog
+// REQ-14: Search bar + scroll in patient/companion popup
+
 import 'package:flutter/material.dart';
-import '../../models/user_model.dart';
-import '../../services/admin_service.dart';
-import '../../services/auth_service.dart';
-import '../../services/document_service.dart';
+import '../models/user_model.dart';
+import '../services/admin_service.dart';
+import '../services/auth_service.dart';
+import '../services/document_service.dart';
 import 'login_screen.dart';
 import 'user_form_dialog.dart';
 import 'companion_link_dialog.dart';
@@ -63,7 +67,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     }
   }
 
-  // REQ-9: centered, longer-lived error snackbar
+  // REQ-9: centered, longer error snackbar
   void _snack(String msg, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -147,19 +151,17 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       _snack('Lipsesc pacienți sau însoțitori', isError: true);
       return;
     }
-    // REQ-14: pass patients and companions — dialog has search+scroll
+    // REQ-14: CompanionLinkDialog has search + scroll built in
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      // REQ-11: dialog is centered by default in Flutter
       builder: (_) =>
           CompanionLinkDialog(patients: patients, companions: companions),
     );
     if (result == null) return;
-    // REQ-13: no relationship field passed
+    // REQ-13: no relationship field
     final r = await _admin.linkCompanion(
       patientId: result['patient_id'],
       companionId: result['companion_id'],
-      // relationship removed: REQ-13
     );
     _snack(r['message'] ?? (r['success'] ? 'Legat' : 'Eroare'),
         isError: r['success'] != true);
@@ -169,7 +171,8 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     final v = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title, textAlign: TextAlign.center), // REQ-9: centered
+        // REQ-9: centered
+        title: Text(title, textAlign: TextAlign.center),
         content: Text(content, textAlign: TextAlign.center),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
@@ -211,7 +214,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.people_outline), text: 'Utilizatori'),
-            // REQ-3: "link" icon replaced with person_add for companion linking
+            // REQ-3: person_add icon for companion link
             Tab(icon: Icon(Icons.person_add_outlined), text: 'Însoțitori'),
             Tab(icon: Icon(Icons.folder_outlined), text: 'Documente'),
           ],
@@ -275,16 +278,16 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         const SizedBox(height: 20),
         _sectionHeader('Pacienți (${patients.length})'),
         const SizedBox(height: 8),
+        // REQ-12: CNP shown alongside patient name
         ...patients.map((p) => _simpleTile(
             icon: Icons.person,
-            // REQ-12: show CNP alongside patient name
             title: p['name'] ?? '',
             subtitle: p['cnp_pacient'] != null
                 ? 'CNP: ${p['cnp_pacient']} · ${p['email'] ?? ''}'
                 : (p['email'] ?? ''),
             color: const Color(0xFF1A5276))),
         const SizedBox(height: 16),
-        // REQ-4: "Însoțitori" terminology
+        // REQ-4: "Însoțitori"
         _sectionHeader('Însoțitori (${companions.length})'),
         const SizedBox(height: 8),
         ...companions.map((c) => _simpleTile(
@@ -307,8 +310,8 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
               itemCount: _documents.length,
               itemBuilder: (_, i) {
                 final doc = _documents[i];
-                // REQ-12: show CNP in doc list too
                 final ownerName = doc['owner']?['name'] ?? '';
+                // REQ-12: CNP shown in document list
                 final ownerCnp = doc['owner']?['cnp_pacient'];
                 final ownerLabel = ownerCnp != null
                     ? '$ownerName (CNP: $ownerCnp)'
@@ -431,8 +434,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       case 'patient':
         return 'Pacient';
       case 'companion':
-        // REQ-4: "Însoțitor"
-        return 'Însoțitor';
+        return 'Însoțitor'; // REQ-4
       default:
         return role ?? '';
     }
