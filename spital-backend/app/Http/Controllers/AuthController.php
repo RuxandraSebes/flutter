@@ -10,18 +10,29 @@ class AuthController extends Controller
 {
     /**
      * Register — patients and companions can self-register.
-     * hospital_id is optional; users select their hospital from the list shown in the app.
+     * REQ-17: CNP is now mandatory for both patient and companion roles.
+     * REQ-18: is_active removed from create — auto-set to true.
      */
     public function register(Request $request)
     {
-        $fields = $request->validate([
+        // REQ-17: cnp_pacient is required for patient and companion
+        $roleInput = $request->input('role', 'patient');
+
+        $rules = [
             'name'        => 'required|string|max:255',
             'email'       => 'required|string|email|unique:users,email',
             'password'    => 'required|string|min:6|confirmed',
-            'cnp_pacient' => 'nullable|string|size:13',
             'role'        => 'sometimes|in:patient,companion',
             'hospital_id' => 'nullable|exists:hospitals,id',
-        ]);
+        ];
+
+        if (in_array($roleInput, ['patient', 'companion'])) {
+            $rules['cnp_pacient'] = 'required|string|size:13';
+        } else {
+            $rules['cnp_pacient'] = 'nullable|string|size:13';
+        }
+
+        $fields = $request->validate($rules);
 
         $user = User::create([
             'name'        => $fields['name'],
@@ -30,6 +41,7 @@ class AuthController extends Controller
             'cnp_pacient' => $fields['cnp_pacient'] ?? null,
             'role'        => $fields['role'] ?? 'patient',
             'hospital_id' => $fields['hospital_id'] ?? null,
+            'is_active'   => true, // REQ-18: always active on creation
         ]);
 
         $token = $user->createToken('spitaltoken')->plainTextToken;

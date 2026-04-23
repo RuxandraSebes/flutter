@@ -3,8 +3,7 @@ import '../services/chat_service.dart';
 import '../models/user_model.dart';
 import 'chat_screen.dart';
 
-/// Shows the list of patient conversations for doctors/admins.
-/// For patients/companions this is not used directly — they go straight to ChatScreen.
+/// REQ-11: Centered popup with message count per conversation.
 class ChatConversationsScreen extends StatefulWidget {
   final UserModel currentUser;
 
@@ -46,6 +45,8 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
         foregroundColor: Colors.white,
         title:
             const Text('Mesaje', style: TextStyle(fontWeight: FontWeight.w600)),
+        // REQ-11: centered title via centerTitle
+        centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -63,6 +64,7 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                     itemBuilder: (_, i) {
                       final conv = _conversations[i];
                       final unread = (conv['unread_count'] ?? 0) as int;
+                      final total = (conv['total_count'] ?? 0) as int;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(
@@ -82,20 +84,34 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                                   : FontWeight.w600,
                             ),
                           ),
-                          subtitle: Text(
-                            conv['last_message'] ?? 'Niciun mesaj',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: unread > 0
-                                  ? const Color(0xFF1A5276)
-                                  : Colors.grey.shade500,
-                              fontSize: 12,
-                              fontWeight: unread > 0
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                conv['last_message'] ?? 'Niciun mesaj',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: unread > 0
+                                      ? const Color(0xFF1A5276)
+                                      : Colors.grey.shade500,
+                                  fontSize: 12,
+                                  fontWeight: unread > 0
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              // REQ-11: show total message count
+                              if (total > 0)
+                                Text(
+                                  '$total mesaj${total == 1 ? '' : 'e'}',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade400),
+                                ),
+                            ],
                           ),
+                          isThreeLine: total > 0,
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -146,25 +162,22 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
     );
   }
 
-  Widget _emptyState() => ListView(children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.chat_bubble_outline,
-                size: 72, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            Text('Niciun mesaj',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade500)),
-            const SizedBox(height: 8),
-            Text('Pacientii pot initia conversatii din aplicatia lor.',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                textAlign: TextAlign.center),
-          ]),
-        ),
-      ]);
+  Widget _emptyState() => Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.chat_bubble_outline,
+              size: 72, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text('Niciun mesaj',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade500)),
+          const SizedBox(height: 8),
+          Text('Pacienții pot iniția conversații din aplicația lor.',
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              textAlign: TextAlign.center),
+        ]),
+      );
 
   String _formatTime(String raw) {
     try {

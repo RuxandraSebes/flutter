@@ -27,6 +27,7 @@ class AdminController extends Controller
             'address' => 'nullable|string',
             'phone'   => 'nullable|string|max:20',
             'email'   => 'nullable|email|max:255',
+            // REQ-18: is_active removed from create — defaults to true automatically
         ]);
 
         $hospital = Hospital::create($fields);
@@ -44,7 +45,7 @@ class AdminController extends Controller
             'address'   => 'nullable|string',
             'phone'     => 'nullable|string|max:20',
             'email'     => 'nullable|email|max:255',
-            'is_active' => 'sometimes|boolean',
+            'is_active' => 'sometimes|boolean', // allowed on UPDATE only
         ]);
 
         $hospital->update($fields);
@@ -62,9 +63,6 @@ class AdminController extends Controller
 
     // ══════════════════════════════════════════════════════════════════════════
     //  USER MANAGEMENT
-    //  global_admin   → all users
-    //  hospital_admin → users in their hospital
-    //  doctor         → ALL patients + companions (read-only, no write routes)
     // ══════════════════════════════════════════════════════════════════════════
 
     public function listUsers(Request $request)
@@ -77,8 +75,6 @@ class AdminController extends Controller
         } elseif ($actor->isHospitalAdmin()) {
             $query->where('hospital_id', $actor->hospital_id);
         } elseif ($actor->isDoctor()) {
-            // Doctors see ALL patients and companions regardless of hospital_id
-            // This covers: seeded patients, self-registered patients, Hipocrate-imported patients
             $query->whereIn('role', ['patient', 'companion']);
         } else {
             return response(['users' => []], 200);
@@ -97,19 +93,43 @@ class AdminController extends Controller
         $actor        = $request->user();
         $allowedRoles = $this->allowedRolesToCreate($actor);
 
-        $fields = $request->validate([
+        // REQ-17: CNP mandatory for patient and companion
+        // REQ-16: For doctors, keep only specialization + make CNP optional (doctors use license_number)
+        // REQ-18: is_active removed from create forms (auto-set to true)
+        // REQ-19: global_admin has no hospital_id field (not tied to a hospital)
+        $rules = [
             'name'           => 'required|string|max:255',
             'email'          => 'required|email|unique:users,email',
             'password'       => 'required|string|min:6',
             'role'           => ['required', Rule::in($allowedRoles)],
-            'hospital_id'    => 'nullable|exists:hospitals,id',
             'cnp_pacient'    => 'nullable|string|size:13',
             'specialization' => 'nullable|string|max:255',
-            'license_number' => 'nullable|string|max:100',
-        ]);
+            // REQ-16: license_number removed for doctors (kept for DB compatibility but not required)
+        ];
+
+        // REQ-19: global_admin should not have hospital_id
+        if (! $actor->isGlobalAdmin()) {
+            $rules['hospital_id'] = 'nullable|exists:hospitals,id';
+        }
+
+        // REQ-17: CNP is mandatory for patients and companions
+        $roleInput = $request->input('role');
+        if (in_array($roleInput, ['patient', 'companion'])) {
+            $rules['cnp_pacient'] = 'required|string|size:13';
+        }
+
+        $fields = $request->validate($rules);
+
+        // REQ-18: always start as active
+        $fields['is_active'] = true;
 
         if ($actor->isHospitalAdmin()) {
             $fields['hospital_id'] = $actor->hospital_id;
+        }
+
+        // REQ-19: global_admin is not assigned to any hospital
+        if ($actor->isGlobalAdmin() && ($fields['role'] ?? '') === 'global_admin') {
+            unset($fields['hospital_id']);
         }
 
         $user = User::create([
@@ -131,16 +151,22 @@ class AdminController extends Controller
 
         $allowedRoles = $this->allowedRolesToCreate($actor);
 
-        $fields = $request->validate([
+        $rules = [
             'name'           => 'sometimes|string|max:255',
             'email'          => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'role'           => ['sometimes', Rule::in($allowedRoles)],
-            'hospital_id'    => 'nullable|exists:hospitals,id',
             'specialization' => 'nullable|string|max:255',
             'license_number' => 'nullable|string|max:100',
-            'is_active'      => 'sometimes|boolean',
+            'is_active'      => 'sometimes|boolean', // allowed on update
             'cnp_pacient'    => 'nullable|string|size:13',
-        ]);
+        ];
+
+        // REQ-19: global_admin cannot have hospital_id
+        if (! $actor->isGlobalAdmin()) {
+            $rules['hospital_id'] = 'nullable|exists:hospitals,id';
+        }
+
+        $fields = $request->validate($rules);
 
         if ($actor->isHospitalAdmin()) {
             unset($fields['hospital_id']);
@@ -171,14 +197,15 @@ class AdminController extends Controller
 
     // ══════════════════════════════════════════════════════════════════════════
     //  COMPANION LINKING
+    //  REQ-13: Remove "relationship" field from link
     // ══════════════════════════════════════════════════════════════════════════
 
     public function linkCompanion(Request $request)
     {
+        // REQ-13: relationship field removed
         $fields = $request->validate([
             'patient_id'         => 'required|exists:users,id',
             'companion_id'       => 'required|exists:users,id',
-            'relationship'       => 'nullable|string|max:100',
             'can_view_documents' => 'boolean',
         ]);
 
@@ -194,7 +221,7 @@ class AdminController extends Controller
 
         $patient->companions()->syncWithoutDetaching([
             $fields['companion_id'] => [
-                'relationship'       => $fields['relationship'] ?? null,
+                'relationship'       => null, // REQ-13: always null, field removed from UI
                 'can_view_documents' => $fields['can_view_documents'] ?? true,
             ],
         ]);

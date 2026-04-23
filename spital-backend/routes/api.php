@@ -50,11 +50,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/access-codes/invite',        [AccessCodeController::class, 'sendEmailInvite']);
     Route::post('/access-codes/invite/redeem', [AccessCodeController::class, 'redeemEmailInvite']);
 
-    // ── Companion management (patient self-service) ───────────────────────────
+    // ── REQ-5: Patient self-service — view & remove companions ────────────────
     Route::get('/my-companions',                  [AccessCodeController::class, 'myCompanions']);
     Route::delete('/my-companions/{companionId}', [AccessCodeController::class, 'unlinkMyCompanion']);
 
-    // ── Chat (FLOW 4) ─────────────────────────────────────────────────────────
+    // ── REQ-6: Companion self-service — view & remove linked patients ─────────
+    Route::get('/my-patients',                [AccessCodeController::class, 'myPatients']);
+    Route::delete('/my-patients/{patientId}', [AccessCodeController::class, 'unlinkMyPatient']);
+
+    // ── Chat ──────────────────────────────────────────────────────────────────
     Route::get('/chat/conversations', [ChatController::class, 'conversations']);
     Route::get('/chat/messages',      [ChatController::class, 'messages']);
     Route::post('/chat/messages',     [ChatController::class, 'send']);
@@ -78,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/users/{id}',      [AdminController::class, 'updateUser']);
         Route::delete('/users/{id}',   [AdminController::class, 'deleteUser']);
 
+        // REQ-13: relationship field removed from link (handled in controller)
         Route::post('/companions/link',   [AdminController::class, 'linkCompanion']);
         Route::post('/companions/unlink', [AdminController::class, 'unlinkCompanion']);
     });

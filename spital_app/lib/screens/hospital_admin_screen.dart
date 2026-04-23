@@ -44,28 +44,51 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
   Future<void> _loadUsers() async {
     setState(() => _loadingU = true);
     final list = await _admin.getUsers();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _users = list;
         _loadingU = false;
       });
+    }
   }
 
   Future<void> _loadDocs() async {
     setState(() => _loadingD = true);
     final list = await _docService.getDocuments();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _documents = list;
         _loadingD = false;
       });
+    }
   }
 
+  // REQ-9: centered, longer-lived error snackbar
   void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
-    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    if (isError) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Center(
+          child: Text(msg,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center),
+        ),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
   }
 
   Future<void> _logout() async {
@@ -74,8 +97,6 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     Navigator.pushAndRemoveUntil(context,
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
-
-  // ── User CRUD ─────────────────────────────────────────────────────────────
 
   Future<void> _addUser() async {
     final result = await showDialog<Map<String, dynamic>>(
@@ -87,8 +108,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (r['success'] == true) {
       _snack('Utilizator creat');
       _loadUsers();
-    } else
+    } else {
       _snack(r['message'], isError: true);
+    }
   }
 
   Future<void> _editUser(Map<String, dynamic> u) async {
@@ -102,8 +124,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (r['success'] == true) {
       _snack('Actualizat');
       _loadUsers();
-    } else
+    } else {
       _snack(r['message'], isError: true);
+    }
   }
 
   Future<void> _deleteUser(Map<String, dynamic> u) async {
@@ -112,8 +135,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (await _admin.deleteUser(u['id'])) {
       _snack('Șters');
       _loadUsers();
-    } else
-      _snack('Eroare', isError: true);
+    } else {
+      _snack('Eroare la ștergere', isError: true);
+    }
   }
 
   Future<void> _linkCompanion() async {
@@ -123,16 +147,19 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       _snack('Lipsesc pacienți sau însoțitori', isError: true);
       return;
     }
+    // REQ-14: pass patients and companions — dialog has search+scroll
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
+      // REQ-11: dialog is centered by default in Flutter
       builder: (_) =>
           CompanionLinkDialog(patients: patients, companions: companions),
     );
     if (result == null) return;
+    // REQ-13: no relationship field passed
     final r = await _admin.linkCompanion(
       patientId: result['patient_id'],
       companionId: result['companion_id'],
-      relationship: result['relationship'],
+      // relationship removed: REQ-13
     );
     _snack(r['message'] ?? (r['success'] ? 'Legat' : 'Eroare'),
         isError: r['success'] != true);
@@ -142,8 +169,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     final v = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
+        title: Text(title, textAlign: TextAlign.center), // REQ-9: centered
+        content: Text(content, textAlign: TextAlign.center),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -183,7 +211,8 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.people_outline), text: 'Utilizatori'),
-            Tab(icon: Icon(Icons.link), text: 'Însoțitori'),
+            // REQ-3: "link" icon replaced with person_add for companion linking
+            Tab(icon: Icon(Icons.person_add_outlined), text: 'Însoțitori'),
             Tab(icon: Icon(Icons.folder_outlined), text: 'Documente'),
           ],
         ),
@@ -196,23 +225,20 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     );
   }
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-
   Widget _usersTab() {
     if (_loadingU) return const Center(child: CircularProgressIndicator());
     return Column(children: [
       Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _addUser,
-              icon: const Icon(Icons.person_add_outlined),
-              label: const Text('Adaugă utilizator'),
-              style: _btnStyle(),
-            ),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _addUser,
+            icon: const Icon(Icons.person_add_outlined),
+            label: const Text('Adaugă utilizator'),
+            style: _btnStyle(),
           ),
-        ]),
+        ),
       ),
       Expanded(
         child: RefreshIndicator(
@@ -237,9 +263,11 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
           width: double.infinity,
+          // REQ-3: person_add icon
           child: ElevatedButton.icon(
             onPressed: _linkCompanion,
-            icon: const Icon(Icons.link),
+            icon: const Icon(Icons.person_add_outlined),
+            // REQ-4: "Însoțitor" terminology
             label: const Text('Leagă însoțitor de pacient'),
             style: _btnStyle(),
           ),
@@ -249,10 +277,14 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         const SizedBox(height: 8),
         ...patients.map((p) => _simpleTile(
             icon: Icons.person,
+            // REQ-12: show CNP alongside patient name
             title: p['name'] ?? '',
-            subtitle: p['email'] ?? '',
+            subtitle: p['cnp_pacient'] != null
+                ? 'CNP: ${p['cnp_pacient']} · ${p['email'] ?? ''}'
+                : (p['email'] ?? ''),
             color: const Color(0xFF1A5276))),
         const SizedBox(height: 16),
+        // REQ-4: "Însoțitori" terminology
         _sectionHeader('Însoțitori (${companions.length})'),
         const SizedBox(height: 8),
         ...companions.map((c) => _simpleTile(
@@ -275,28 +307,37 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
               itemCount: _documents.length,
               itemBuilder: (_, i) {
                 final doc = _documents[i];
+                // REQ-12: show CNP in doc list too
+                final ownerName = doc['owner']?['name'] ?? '';
+                final ownerCnp = doc['owner']?['cnp_pacient'];
+                final ownerLabel = ownerCnp != null
+                    ? '$ownerName (CNP: $ownerCnp)'
+                    : ownerName;
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 10),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    leading: const Icon(Icons.picture_as_pdf,
-                        color: Color(0xFF1A5276), size: 28),
-                    title: Text(doc['name'] ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      '${doc['owner']?['name'] ?? ''} · ${doc['created_at'] ?? ''}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.open_in_new,
+                  // REQ-1: tap whole row to open
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PdfViewerScreen(
+                              url: doc['url'], name: doc['name']),
+                        )),
+                    child: ListTile(
+                      leading: const Icon(Icons.picture_as_pdf,
+                          color: Color(0xFF1A5276), size: 28),
+                      title: Text(doc['name'] ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        '$ownerLabel · ${doc['created_at'] ?? ''}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.chevron_right,
                           color: Color(0xFF1A5276)),
-                      onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PdfViewerScreen(
-                                url: doc['url'], name: doc['name']),
-                          )),
                     ),
                   ),
                 );
@@ -304,8 +345,6 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
             ),
     );
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   Widget _userCard(Map<String, dynamic> u) {
     final roleColors = {
@@ -327,6 +366,10 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         subtitle:
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(u['email'] ?? ''),
+          // REQ-12: show CNP for patients
+          if (u['role'] == 'patient' && u['cnp_pacient'] != null)
+            Text('CNP: ${u['cnp_pacient']}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           Container(
             margin: const EdgeInsets.only(top: 4),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -346,7 +389,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
               icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
               onPressed: () => _deleteUser(u)),
         ]),
-        isThreeLine: true,
+        isThreeLine: u['role'] == 'patient' && u['cnp_pacient'] != null,
       ),
     );
   }
@@ -388,6 +431,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       case 'patient':
         return 'Pacient';
       case 'companion':
+        // REQ-4: "Însoțitor"
         return 'Însoțitor';
       default:
         return role ?? '';

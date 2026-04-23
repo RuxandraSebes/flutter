@@ -299,7 +299,6 @@ class _DoctorScreenState extends State<DoctorScreen>
                             ),
                             trailing:
                                 Row(mainAxisSize: MainAxisSize.min, children: [
-                              // Quick chat button
                               IconButton(
                                 icon: const Icon(Icons.chat_bubble_outline,
                                     color: Color(0xFF1A5276), size: 20),

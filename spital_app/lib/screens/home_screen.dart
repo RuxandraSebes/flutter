@@ -4,11 +4,13 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import '../services/chat_service.dart';
+import '../services/access_code_service.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'generate_access_code_screen.dart';
 import 'redeem_access_code_screen.dart';
 import 'chat_screen.dart';
+import 'my_companions_screen.dart'; // REQ-5 & REQ-6
 
 class HomeScreen extends StatefulWidget {
   final UserModel user;
@@ -25,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingDocs = true;
   bool _uploading = false;
   int _unreadMessages = 0;
+
+  // REQ-9: error message controller
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -71,24 +76,29 @@ class _HomeScreenState extends State<HomeScreen> {
       _showSnack('Upload reusit');
       await _fetchDocuments();
     } else {
-      _showSnack(response['message'], isError: true);
+      // REQ-9: More visible error
+      _showError(response['message'] ?? 'Eroare la upload');
     }
   }
 
+  // REQ-2: Swipe to delete with confirmation
   Future<void> _deleteDocument(int id, String name) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Sterge document'),
-        content: Text('Esti sigur ca vrei sa stergi "$name"?'),
+        // REQ-9: centered dialog
+        title: const Text('Sterge document', textAlign: TextAlign.center),
+        content: Text('Ești sigur că vrei să ștergi "$name"?',
+            textAlign: TextAlign.center),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anuleaza')),
+              child: const Text('Anulează')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sterge', style: TextStyle(color: Colors.white)),
+            child: const Text('Șterge', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -96,10 +106,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirmed != true) return;
     final ok = await _docService.deleteDocument(id);
     if (ok) {
-      _showSnack('Document sters');
+      _showSnack('Document șters');
       await _fetchDocuments();
     } else {
-      _showSnack('Eroare la stergere', isError: true);
+      _showError('Eroare la ștergere');
     }
   }
 
@@ -108,11 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Deconectare'),
-        content: const Text('Esti sigur ca vrei sa iesi din cont?'),
+        content: const Text('Ești sigur că vrei să ieși din cont?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anuleaza')),
+              child: const Text('Anulează')),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Deconectare')),
@@ -126,10 +136,34 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
-  void _showSnack(String msg, {bool isError = false}) {
+  // REQ-9: Centered, more visible error with longer duration
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Center(
+        child: Text(
+          msg,
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+          textAlign: TextAlign.center,
+        ),
+      ),
+      backgroundColor: Colors.red.shade700,
+      duration: const Duration(seconds: 5), // REQ-9: longer display
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+      backgroundColor: Colors.green.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
   }
 
@@ -144,8 +178,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result == true) _fetchDocuments();
   }
 
-  /// Open chat — for patient: their own conversation
-  /// for companion: the first linked patient's conversation
+  // REQ-5 & REQ-6: Open companion/patient management screen
+  void _openRelationships() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MyCompanionsScreen(user: widget.user),
+      ),
+    );
+  }
+
   Future<void> _openChat() async {
     final u = widget.user;
 
@@ -164,14 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (u.isCompanion) {
-      // Get first linked patient
       final convs = await _chatService.getConversations();
       if (!mounted) return;
       if (convs.isEmpty) {
-        _showSnack('Nu esti asociat niciunui pacient', isError: true);
+        _showError('Nu ești asociat niciunui pacient');
         return;
       }
-      // If multiple patients, show picker
       if (convs.length == 1) {
         Navigator.push(
           context,
@@ -199,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text('Selecteaza pacientul',
+            child: Text('Selectează pacientul',
                 style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
@@ -242,6 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(u.name,
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          // REQ-4: "Aparținător" → "Însoțitor" in role label (handled in UserModel)
           Text(u.roleLabel,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
@@ -249,7 +290,8 @@ class _HomeScreenState extends State<HomeScreen> {
           if (u.isPatient)
             IconButton(
               icon: const Icon(Icons.people_alt_outlined),
-              tooltip: 'Ofera acces apartinator',
+              // REQ-4: updated tooltip
+              tooltip: 'Oferă acces însoțitor',
               onPressed: _openGenerateCode,
             ),
           if (u.isCompanion)
@@ -258,7 +300,14 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: 'Introdu cod pacient',
               onPressed: _openRedeemCode,
             ),
-          // Chat button with unread badge
+          // REQ-5 & REQ-6: Manage relationships button
+          if (u.isPatient || u.isCompanion)
+            IconButton(
+              // REQ-3: person_add icon for companion management
+              icon: const Icon(Icons.person_add_outlined),
+              tooltip: u.isPatient ? 'Însoțitorii mei' : 'Pacienții mei',
+              onPressed: _openRelationships,
+            ),
           Stack(children: [
             IconButton(
               icon: const Icon(Icons.chat_bubble_outline),
@@ -303,10 +352,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.upload_file),
-              label: Text(_uploading ? 'Se incarca...' : 'Adauga PDF'),
+              label: Text(_uploading ? 'Se încarcă...' : 'Adaugă PDF'),
             )
           : null,
       body: Column(children: [
+        // REQ-4: "aparținător" → "însoțitor" in banners
         if (u.isPatient) _patientAccessBanner(),
         if (u.isCompanion) _companionAccessBanner(),
         Expanded(
@@ -337,7 +387,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF1A5276).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.people_alt_outlined,
+              // REQ-3: person_add icon for granting access
+              child: const Icon(Icons.person_add_outlined,
                   color: Color(0xFF1A5276), size: 22),
             ),
             const SizedBox(width: 12),
@@ -345,12 +396,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Ofera acces apartinator',
+                    // REQ-4: "Aparținător" → "Însoțitor"
+                    Text('Oferă acces însoțitor',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF1A5276),
                             fontSize: 14)),
-                    Text('Genereaza un cod temporar de 6 cifre',
+                    Text('Generează un cod temporar de 6 cifre',
                         style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ]),
             ),
@@ -379,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Asociaza-te cu un pacient',
+                    Text('Asociază-te cu un pacient',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: Colors.orange,
@@ -407,9 +459,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.grey.shade600)),
             const SizedBox(height: 8),
             Text(
+              // REQ-4: "Aparținător" → "Însoțitor"
               u.isCompanion
-                  ? 'Asociaza-te cu un pacient pentru a vedea documentele'
-                  : 'Nu ai documente incarcate',
+                  ? 'Asociază-te cu un pacient pentru a vedea documentele'
+                  : 'Nu ai documente încărcate',
               style: TextStyle(color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
@@ -422,9 +475,11 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: _documents.length,
         itemBuilder: (context, i) {
           final doc = _documents[i];
-          return _DocCard(
+          // REQ-2: Swipe to delete
+          return _SwipeToDeleteDocCard(
             doc: doc,
             canDelete: u.isPatient,
+            // REQ-1: tap anywhere on row to open PDF (no separate view icon)
             onOpen: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -436,59 +491,123 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 }
 
-class _DocCard extends StatelessWidget {
+// ── REQ-1 & REQ-2: Card that opens PDF on tap, swipe-left to delete ──────────
+class _SwipeToDeleteDocCard extends StatelessWidget {
   final Map<String, dynamic> doc;
   final VoidCallback onOpen;
   final VoidCallback onDelete;
   final bool canDelete;
 
-  const _DocCard(
-      {required this.doc,
-      required this.onOpen,
-      required this.onDelete,
-      required this.canDelete});
+  const _SwipeToDeleteDocCard({
+    required this.doc,
+    required this.onOpen,
+    required this.onDelete,
+    required this.canDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final card = Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-              color: const Color(0xFF1A5276).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.picture_as_pdf,
-              color: Color(0xFF1A5276), size: 28),
+      // REQ-1: entire row is tappable to open PDF — no separate view icon
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                  color: const Color(0xFF1A5276).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.picture_as_pdf,
+                  color: Color(0xFF1A5276), size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(doc['name'] ?? 'Document',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 3),
+                    Text(doc['created_at'] ?? '',
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 12)),
+                    if (doc['owner'] != null && doc['owner']['name'] != null)
+                      Text('Pacient: ${doc['owner']['name']}',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 12)),
+                  ]),
+            ),
+            // REQ-1: small open indicator instead of a dedicated icon button
+            const Icon(Icons.chevron_right, color: Color(0xFF1A5276), size: 20),
+          ]),
         ),
-        title: Text(doc['name'] ?? 'Document',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis),
-        subtitle:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(doc['created_at'] ?? '',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-          if (doc['owner'] != null && doc['owner']['name'] != null)
-            Text('Pacient: ${doc['owner']['name']}',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-        ]),
-        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          IconButton(
-              icon: const Icon(Icons.open_in_new, color: Color(0xFF1A5276)),
-              tooltip: 'Deschide',
-              onPressed: onOpen),
-          if (canDelete)
-            IconButton(
-                icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
-                tooltip: 'Sterge',
-                onPressed: onDelete),
-        ]),
       ),
+    );
+
+    // REQ-2: wrap with Dismissible for swipe-to-delete (patients only)
+    if (!canDelete) return card;
+
+    return Dismissible(
+      key: Key('doc-${doc['id']}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red.shade600,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white, size: 28),
+            SizedBox(height: 4),
+            Text('Șterge',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+      confirmDismiss: (_) async {
+        // REQ-2: confirmation before delete
+        return await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Șterge document', textAlign: TextAlign.center),
+            content: Text(
+              'Ești sigur că vrei să ștergi\n"${doc['name']}"?',
+              textAlign: TextAlign.center,
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Anulează')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () => Navigator.pop(context, true),
+                child:
+                    const Text('Șterge', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      },
+      onDismissed: (_) => onDelete(),
+      child: card,
     );
   }
 }

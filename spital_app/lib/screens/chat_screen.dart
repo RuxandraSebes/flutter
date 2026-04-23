@@ -3,15 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../models/user_model.dart';
 
-/// ChatScreen — shown for both patients/companions (single conversation)
-/// and doctors/admins (a specific patient conversation passed in).
-///
-/// Usage:
-///   // From doctor: pass patientId + patientName
-///   ChatScreen(currentUser: doctor, patientId: 42, patientName: 'Ion Popescu')
-///
-///   // From patient/companion: patientId = the patient's own id
-///   ChatScreen(currentUser: patient, patientId: patient.id, patientName: patient.name)
+/// REQ-10: Messages clearly indicate who is companion, patient, or doctor.
 class ChatScreen extends StatefulWidget {
   final UserModel currentUser;
   final int patientId;
@@ -42,7 +34,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
-    // Poll for new messages every 5 seconds
     _pollTimer = Timer.periodic(
         const Duration(seconds: 5), (_) => _loadMessages(silent: true));
   }
@@ -92,21 +83,70 @@ class _ChatScreenState extends State<ChatScreen> {
     if (result['success'] == true) {
       await _loadMessages(silent: true);
     } else {
+      // REQ-9: centered, visible error
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result['error'] ?? 'Eroare la trimitere'),
+        content: Center(
+          child: Text(result['error'] ?? 'Eroare la trimitere',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center),
+        ),
         backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
-      _msgCtrl.text = text; // restore text on failure
+      _msgCtrl.text = text;
     }
   }
 
   bool _isMine(Map<String, dynamic> msg) {
-    final senderId = msg['sender_id'];
-    return senderId == widget.currentUser.id;
+    return msg['sender_id'] == widget.currentUser.id;
   }
 
-  bool _isFromDoctorSide(Map<String, dynamic> msg) {
-    return msg['sender_role'] == 'doctor_side';
+  // REQ-10: Determine the display role label from sender context
+  String _senderRoleLabel(Map<String, dynamic> msg) {
+    final senderRole = msg['sender_role'] ?? '';
+    final senderId = msg['sender_id'];
+
+    if (senderRole == 'doctor_side') {
+      return 'Medic';
+    }
+
+    // patient_side: could be patient or companion
+    // We know the patientId — if sender is the patient, label "Pacient", else "Însoțitor"
+    if (senderId == widget.patientId) {
+      return 'Pacient';
+    }
+    // REQ-4 & REQ-10: Companion label
+    return 'Însoțitor';
+  }
+
+  Color _senderRoleColor(Map<String, dynamic> msg) {
+    final label = _senderRoleLabel(msg);
+    switch (label) {
+      case 'Medic':
+        return const Color(0xFF1A5276);
+      case 'Pacient':
+        return Colors.green.shade700;
+      case 'Însoțitor':
+      default:
+        return Colors.orange.shade700;
+    }
+  }
+
+  IconData _senderRoleIcon(Map<String, dynamic> msg) {
+    final label = _senderRoleLabel(msg);
+    switch (label) {
+      case 'Medic':
+        return Icons.medical_services_outlined;
+      case 'Pacient':
+        return Icons.personal_injury_outlined;
+      case 'Însoțitor':
+      default:
+        return Icons.people_alt_outlined;
+    }
   }
 
   @override
@@ -122,40 +162,22 @@ class _ChatScreenState extends State<ChatScreen> {
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           const Text(
-            'Conversatie medicala',
+            'Conversație medicală',
             style: TextStyle(fontSize: 11, color: Colors.white70),
           ),
         ]),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reincarca',
+            tooltip: 'Reîncarcă',
             onPressed: () => _loadMessages(),
           ),
         ],
       ),
       body: Column(children: [
-        // Info banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFF1A5276).withOpacity(0.07),
-          child: Row(children: [
-            const Icon(Icons.info_outline, size: 14, color: Color(0xFF1A5276)),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                widget.currentUser.isDoctor ||
-                        widget.currentUser.isHospitalAdmin ||
-                        widget.currentUser.isGlobalAdmin
-                    ? 'Mesajele sunt vizibile pacientului si apartinatorilor acestuia.'
-                    : 'Mesajele sunt trimise echipei medicale.',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF1A5276)),
-              ),
-            ),
-          ]),
-        ),
+        // REQ-10: legend strip showing participant roles
+        _roleLegend(),
 
-        // Messages list
         Expanded(
           child: _loading
               ? const Center(
@@ -169,79 +191,110 @@ class _ChatScreenState extends State<ChatScreen> {
                       itemBuilder: (_, i) => _MessageBubble(
                         msg: _messages[i],
                         isMine: _isMine(_messages[i]),
-                        isFromDoctorSide: _isFromDoctorSide(_messages[i]),
+                        roleLabel: _senderRoleLabel(_messages[i]),
+                        roleColor: _senderRoleColor(_messages[i]),
+                        roleIcon: _senderRoleIcon(_messages[i]),
                         showSenderName: !_isMine(_messages[i]),
                       ),
                     ),
         ),
 
-        // Input area
-        Container(
-          padding: EdgeInsets.only(
-            left: 12,
-            right: 12,
-            top: 10,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+        _inputBar(),
+      ]),
+    );
+  }
+
+  /// REQ-10: Small legend at the top clarifying the 3 roles
+  Widget _roleLegend() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _legendChip(Icons.medical_services_outlined, 'Medic',
+              const Color(0xFF1A5276)),
+          _legendChip(
+              Icons.personal_injury_outlined, 'Pacient', Colors.green.shade700),
+          _legendChip(
+              Icons.people_alt_outlined, 'Însoțitor', Colors.orange.shade700),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendChip(IconData icon, String label, Color color) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: color),
+      const SizedBox(width: 4),
+      Text(label,
+          style: TextStyle(
+              fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+    ]);
+  }
+
+  Widget _inputBar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 12,
+        right: 12,
+        top: 10,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _msgCtrl,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'Scrie un mesaj...',
-                  hintStyle: TextStyle(color: Colors.grey.shade400),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                ),
-                onSubmitted: (_) => _send(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              child: Material(
-                color: const Color(0xFF1A5276),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _msgCtrl,
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'Scrie un mesaj...',
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(24),
-                  onTap: _sending ? null : _send,
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    alignment: Alignment.center,
-                    child: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.send_rounded,
-                            color: Colors.white, size: 22),
-                  ),
-                ),
+                borderSide: BorderSide.none,
               ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             ),
-          ]),
+            onSubmitted: (_) => _send(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Material(
+          color: const Color(0xFF1A5276),
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: _sending ? null : _send,
+            child: Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              child: _sending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send_rounded,
+                      color: Colors.white, size: 22),
+            ),
+          ),
         ),
       ]),
     );
@@ -253,7 +306,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
         const SizedBox(height: 12),
         Text(
-          'Niciun mesaj inca.',
+          'Niciun mesaj încă.',
           style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
         ),
         const SizedBox(height: 6),
@@ -269,26 +322,25 @@ class _ChatScreenState extends State<ChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> msg;
   final bool isMine;
-  final bool isFromDoctorSide;
   final bool showSenderName;
+  // REQ-10: role-based display
+  final String roleLabel;
+  final Color roleColor;
+  final IconData roleIcon;
 
   const _MessageBubble({
     required this.msg,
     required this.isMine,
-    required this.isFromDoctorSide,
     required this.showSenderName,
+    required this.roleLabel,
+    required this.roleColor,
+    required this.roleIcon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = isMine
-        ? const Color(0xFF1A5276)
-        : isFromDoctorSide
-            ? const Color(0xFF2E86C1).withOpacity(0.12)
-            : Colors.white;
-
+    final bubbleColor = isMine ? const Color(0xFF1A5276) : Colors.white;
     final textColor = isMine ? Colors.white : const Color(0xFF2C3E50);
-
     final time = _formatTime(msg['created_at']);
 
     return Padding(
@@ -297,41 +349,30 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment:
             isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          // REQ-10: show role badge for all non-mine messages
           if (showSenderName)
             Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 2),
-              child: Row(children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: isFromDoctorSide
-                        ? const Color(0xFF1A5276).withOpacity(0.15)
-                        : Colors.orange.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isFromDoctorSide
-                        ? Icons.medical_services_outlined
-                        : Icons.person_outline,
-                    size: 12,
-                    color: isFromDoctorSide
-                        ? const Color(0xFF1A5276)
-                        : Colors.orange,
-                  ),
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: roleColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  msg['sender_name'] ?? '',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isFromDoctorSide
-                        ? const Color(0xFF1A5276)
-                        : Colors.orange.shade700,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(roleIcon, size: 12, color: roleColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    // REQ-10: show both role and name, e.g. "Medic · Dr. Popescu"
+                    '$roleLabel · ${msg['sender_name'] ?? ''}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: roleColor,
+                    ),
                   ),
-                ),
-              ]),
+                ]),
+              ),
             ),
           Container(
             constraints: BoxConstraints(
@@ -360,11 +401,7 @@ class _MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   msg['message'] ?? '',
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
+                  style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
                 ),
                 const SizedBox(height: 4),
                 Row(

@@ -38,8 +38,6 @@ class UserModel {
         isActive: json['is_active'] ?? true,
       );
 
-  // ── Role checks ────────────────────────────────────────────────────────────
-
   bool get isGlobalAdmin => role == 'global_admin';
   bool get isHospitalAdmin => role == 'hospital_admin';
   bool get isDoctor => role == 'doctor';
@@ -61,6 +59,7 @@ class UserModel {
       case 'patient':
         return 'Pacient';
       case 'companion':
+        // REQ-4: renamed from "Aparținător" to "Însoțitor" everywhere
         return 'Însoțitor';
       default:
         return role;

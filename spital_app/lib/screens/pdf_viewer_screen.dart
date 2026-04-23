@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import '../services/auth_service.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String url;
@@ -30,37 +32,57 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   }
 
   Future<void> _downloadPdf() async {
+    final client = http.Client();
     try {
-      // Build absolute URL
+      final baseUrl = AuthService.baseUrl.replaceAll('/api', '');
       final url = widget.url.startsWith('http')
           ? widget.url
-          : 'http://10.0.2.2:8000/${widget.url.replaceFirst(RegExp(r'^/'), '')}';
+          : '$baseUrl/${widget.url.replaceFirst(RegExp(r'^/'), '')}';
 
-      final response = await http.get(Uri.parse(url));
+      final request = http.Request('GET', Uri.parse(url));
+      final response =
+          await client.send(request).timeout(const Duration(seconds: 30));
+
       if (response.statusCode != 200) {
-        setState(() {
-          _error = 'Nu s-a putut descărca (${response.statusCode})';
-          _loading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'Nu s-a putut descărca (${response.statusCode})';
+            _loading = false;
+          });
+        }
         return;
       }
+
+      final bytes =
+          await response.stream.toBytes().timeout(const Duration(seconds: 60));
 
       final dir = await getTemporaryDirectory();
       final safeFileName = widget.name.replaceAll(RegExp(r'[^\w\.]'), '_');
       final file = File('${dir.path}/$safeFileName');
-      await file.writeAsBytes(response.bodyBytes);
+      await file.writeAsBytes(bytes);
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           _localPath = file.path;
           _loading = false;
         });
+      }
+    } on TimeoutException {
+      if (mounted) {
+        setState(() {
+          _error = 'Timeout: descărcarea a durat prea mult';
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = 'Eroare: $e';
           _loading = false;
         });
+      }
+    } finally {
+      client.close();
     }
   }
 
@@ -86,35 +108,37 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       body: _loading
           ? const Center(
               child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: Color(0xFF1A5276)),
-                    SizedBox(height: 16),
-                    Text('Se descarcă documentul...'),
-                  ]),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF1A5276)),
+                  SizedBox(height: 16),
+                  Text('Se descarcă documentul...'),
+                ],
+              ),
             )
           : _error != null
               ? Center(
                   child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline,
-                            size: 64, color: Colors.red.shade400),
-                        const SizedBox(height: 12),
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _loading = true;
-                              _error = null;
-                            });
-                            _downloadPdf();
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Reîncearcă'),
-                        ),
-                      ]),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline,
+                          size: 64, color: Colors.red.shade400),
+                      const SizedBox(height: 12),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _loading = true;
+                            _error = null;
+                          });
+                          _downloadPdf();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reîncearcă'),
+                      ),
+                    ],
+                  ),
                 )
               : PDFView(
                   filePath: _localPath!,

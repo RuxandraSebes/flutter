@@ -20,7 +20,6 @@ class AccessCodeController extends Controller
             return response(['message' => 'Doar pacienții pot genera coduri de acces'], 403);
         }
 
-        // Invalidate any previous unused numeric codes for this patient
         CompanionAccessCode::where('patient_id', $patient->id)
             ->whereNull('invite_token')
             ->where('used', false)
@@ -31,7 +30,7 @@ class AccessCodeController extends Controller
         $accessCode = CompanionAccessCode::create([
             'patient_id' => $patient->id,
             'code'       => $code,
-            'expires_at' => now()->addSeconds(300), // 5 minutes
+            'expires_at' => now()->addSeconds(300),
             'used'       => false,
         ]);
 
@@ -49,6 +48,7 @@ class AccessCodeController extends Controller
         $companion = $request->user();
 
         if (! $companion->isCompanion()) {
+            // REQ-4: "Aparținător" → "Însoțitor"
             return response(['message' => 'Doar însoțitorii pot folosi coduri de acces'], 403);
         }
 
@@ -58,12 +58,12 @@ class AccessCodeController extends Controller
 
         $code = $request->input('code');
 
-$accessCode = CompanionAccessCode::whereNull('invite_token')
-    ->where('code', $code)
-    ->where('used', false)
-    ->where('expires_at', '>=', now()) 
-    ->with('patient')
-    ->first();
+        $accessCode = CompanionAccessCode::whereNull('invite_token')
+            ->where('code', $code)
+            ->where('used', false)
+            ->where('expires_at', '>=', now())
+            ->with('patient')
+            ->first();
 
         if (! $accessCode) {
             return response([
@@ -77,7 +77,6 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
             return response(['message' => 'Pacientul asociat codului nu mai există'], 422);
         }
 
-        // Link companion → patient (idempotent)
         $patient->companions()->syncWithoutDetaching([
             $companion->id => [
                 'relationship'       => null,
@@ -85,10 +84,10 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
             ],
         ]);
 
-        // Mark the code as used
         $accessCode->update(['used' => true]);
 
         return response([
+            // REQ-4: "aparținătorului" → "însoțitorului"
             'message' => 'Asociere reușită! Poți acum vizualiza documentele pacientului.',
             'patient' => [
                 'id'   => $patient->id,
@@ -113,7 +112,6 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
 
         $email = $request->input('email');
 
-        // Invalidate previous unused email invites to this address
         CompanionAccessCode::where('patient_id', $patient->id)
             ->where('companion_email', $email)
             ->where('used', false)
@@ -123,7 +121,7 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
 
         CompanionAccessCode::create([
             'patient_id'      => $patient->id,
-            'code'            => substr(md5($token), 0, 6), // placeholder for NOT NULL
+            'code'            => substr(md5($token), 0, 6),
             'invite_token'    => $token,
             'companion_email' => $email,
             'expires_at'      => now()->addHours(24),
@@ -131,24 +129,33 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
         ]);
 
         $patientName = $patient->name;
-        $deepLink    = config('app.url') . '/invite/' . $token;
+
+        // REQ-8: Deep link points to the app's invite handler
+        // On mobile: opens app via spitalapp://invite/<token>
+        // On web/fallback: opens the web URL which shows a download prompt
+        $appDeepLink = 'spitalapp://invite/' . $token;
+        $webFallback = config('app.url') . '/invite/' . $token;
+
+        // REQ-7: Email subject uses hospital branding (not "Laravel")
+        $hospitalName = $patient->hospital?->name ?? 'Spital Vișeu de Sus';
+        $subject = "{$hospitalName} – Invitație acces dosar medical";
 
         $mailSent = false;
         try {
-            Mail::send([], [], function ($message) use ($email, $patientName, $deepLink, $token) {
+            Mail::send([], [], function ($message) use ($email, $patientName, $appDeepLink, $webFallback, $token, $subject) {
                 $message->to($email)
-                    ->subject("Invitație acces dosar medical – {$patientName}")
-                    ->html($this->buildInviteEmailHtml($patientName, $deepLink, $token));
+                    ->subject($subject) // REQ-7: branded subject
+                    ->html($this->buildInviteEmailHtml($patientName, $appDeepLink, $webFallback, $token));
             });
             $mailSent = true;
         } catch (\Exception $e) {
-            // Mail not configured — return token so patient can share it manually
+            // Mail not configured — return token so patient can share manually
         }
 
         return response([
             'message'      => $mailSent
                 ? "Invitație trimisă la {$email}"
-                : "Email-ul nu a putut fi trimis. Trimite manual tokenul aparținătorului.",
+                : "Email-ul nu a putut fi trimis. Trimite manual tokenul însoțitorului.",
             'invite_token' => $token,
             'mail_sent'    => $mailSent,
         ], 200);
@@ -161,6 +168,7 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
         $companion = $request->user();
 
         if (! $companion->isCompanion()) {
+            // REQ-4: "Aparținător" → "Însoțitor"
             return response(['message' => 'Doar însoțitorii pot accepta invitații'], 403);
         }
 
@@ -198,6 +206,7 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
         $accessCode->update(['used' => true]);
 
         return response([
+            // REQ-4: updated terminology
             'message' => 'Invitație acceptată! Poți acum vizualiza documentele pacientului.',
             'patient' => [
                 'id'   => $patient->id,
@@ -206,7 +215,7 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
         ], 200);
     }
 
-    // ── List linked companions for current patient ────────────────────────────
+    // ── REQ-5: List linked companions for current patient ─────────────────────
 
     public function myCompanions(Request $request)
     {
@@ -219,16 +228,16 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
         $companions = $patient->companions()
             ->get()
             ->map(fn($c) => [
-                'id'           => $c->id,
-                'name'         => $c->name,
-                'email'        => $c->email,
-                'relationship' => $c->pivot->relationship,
+                'id'    => $c->id,
+                'name'  => $c->name,
+                'email' => $c->email,
+                // REQ-13: relationship field omitted
             ]);
 
         return response(['companions' => $companions], 200);
     }
 
-    // ── Unlink a companion (patient calls this) ───────────────────────────────
+    // ── REQ-5: Patient removes a companion ────────────────────────────────────
 
     public function unlinkMyCompanion(Request $request, int $companionId)
     {
@@ -240,13 +249,61 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
 
         $patient->companions()->detach($companionId);
 
+        // REQ-4: "Însoțitor" terminology
         return response(['message' => 'Însoțitor deconectat'], 200);
     }
 
-    // ── Private: build invite email HTML ─────────────────────────────────────
+    // ── REQ-6: List linked patients for current companion ─────────────────────
 
-    private function buildInviteEmailHtml(string $patientName, string $deepLink, string $token): string
+    public function myPatients(Request $request)
     {
+        $companion = $request->user();
+
+        if (! $companion->isCompanion()) {
+            return response(['message' => 'Acces interzis'], 403);
+        }
+
+        $patients = $companion->patients()
+            ->get()
+            ->map(fn($p) => [
+                'id'    => $p->id,
+                'name'  => $p->name,
+                'email' => $p->email,
+            ]);
+
+        return response(['patients' => $patients], 200);
+    }
+
+    // ── REQ-6: Companion removes a patient link ────────────────────────────────
+
+    public function unlinkMyPatient(Request $request, int $patientId)
+    {
+        $companion = $request->user();
+
+        if (! $companion->isCompanion()) {
+            return response(['message' => 'Acces interzis'], 403);
+        }
+
+        $companion->patients()->detach($patientId);
+
+        return response(['message' => 'Relație cu pacientul eliminată'], 200);
+    }
+
+    // ── Private: build invite email HTML ──────────────────────────────────────
+
+    /**
+     * REQ-7: Hospital-branded subject (handled in caller).
+     * REQ-8: Smart deep-link button — tries to open the app first,
+     *        falls back to web URL for download prompt.
+     */
+    private function buildInviteEmailHtml(
+        string $patientName,
+        string $appDeepLink,
+        string $webFallback,
+        string $token
+    ): string {
+        // REQ-8: The primary CTA uses the app deep link.
+        // A secondary "download app" link uses the web fallback.
         return <<<HTML
 <!DOCTYPE html>
 <html>
@@ -263,6 +320,7 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
                style="background:#ffffff;border-radius:16px;overflow:hidden;
                       box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
+          <!-- REQ-7: Hospital branding in header -->
           <tr>
             <td style="background:#1A5276;padding:32px 40px;text-align:center;">
               <div style="font-size:36px;margin-bottom:8px;">🏥</div>
@@ -286,20 +344,29 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
                 <strong>Spital Vișeu UPU</strong>.
               </p>
 
+              <!-- REQ-8: Primary deep-link button — opens app if installed -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="padding:8px 0 24px;">
-                    <a href="{$deepLink}"
+                  <td align="center" style="padding:8px 0 16px;">
+                    <a href="{$appDeepLink}"
                        style="background:#1A5276;color:#ffffff;text-decoration:none;
                               padding:16px 40px;border-radius:12px;font-size:16px;
                               font-weight:700;display:inline-block;">
-                      ✓ &nbsp;Acceptă invitația
+                      ✓ &nbsp;Acceptă invitația în aplicație
                     </a>
                   </td>
                 </tr>
               </table>
 
+              <!-- REQ-8: Fallback link for users without the app -->
               <p style="color:#888;font-size:13px;text-align:center;margin:0 0 12px;">
+                Nu ai aplicația instalată?
+                <a href="{$webFallback}" style="color:#1A5276;font-weight:700;">
+                  Descarcă aplicația și acceptă invitația
+                </a>
+              </p>
+
+              <p style="color:#888;font-size:13px;text-align:center;margin:16px 0 12px;">
                 Sau introdu manual tokenul în aplicație:
               </p>
 
@@ -332,6 +399,7 @@ $accessCode = CompanionAccessCode::whereNull('invite_token')
           <tr>
             <td style="background:#f8f9fa;padding:20px 40px;text-align:center;
                        border-top:1px solid #e9ecef;">
+              <!-- REQ-7: Hospital name in footer, not "Laravel" -->
               <p style="color:#aaa;font-size:12px;margin:0;">
                 Spitalul Municipal Vișeu de Sus · Portal UPU
               </p>
