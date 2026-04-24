@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'chat_screen.dart';
 import 'chat_conversations_screen.dart';
+import '../i18n/language_provider.dart'; // Import necesar
 
 class DoctorScreen extends StatefulWidget {
   final UserModel user;
@@ -24,6 +25,9 @@ class _DoctorScreenState extends State<DoctorScreen>
   final _admin = AdminService();
   final _docService = DocumentService();
   final _chatService = ChatService();
+
+  // Metodă helper pentru traduceri
+  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   List<Map<String, dynamic>> _patients = [];
   List<Map<String, dynamic>> _documents = [];
@@ -153,7 +157,7 @@ class _DoctorScreenState extends State<DoctorScreen>
         actions: [
           IconButton(
               icon: const Icon(Icons.logout),
-              tooltip: 'Deconectare',
+              tooltip: _tr('logout'),
               onPressed: _logout)
         ],
         bottom: TabBar(
@@ -166,13 +170,13 @@ class _DoctorScreenState extends State<DoctorScreen>
             const Tab(icon: Icon(Icons.folder_outlined), text: 'Documente'),
             Tab(
               child: Stack(alignment: Alignment.topRight, children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(right: 6),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.chat_bubble_outline),
-                      Text('Mesaje', style: TextStyle(fontSize: 12)),
+                      Text(_tr('messages'), style: TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -212,7 +216,7 @@ class _DoctorScreenState extends State<DoctorScreen>
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.upload_file),
-              label: Text(_uploading ? 'Se incarca...' : 'Adauga PDF'),
+              label: Text(_uploading ? _tr('uploading') : _tr('add_pdf')),
             )
           : null,
       body: TabBarView(controller: _tabs, children: [
@@ -248,10 +252,10 @@ class _DoctorScreenState extends State<DoctorScreen>
         child: RefreshIndicator(
           onRefresh: _loadPatients,
           child: _patients.isEmpty
-              ? const Center(child: Text('Niciun pacient inregistrat'))
+              ? Center(child: Text(_tr('no_search_results')))
               : _filteredPatients.isEmpty
                   ? Center(
-                      child: Text('Niciun rezultat pentru "$_searchQuery"',
+                      child: Text(_tr('no_results_for_query'),
                           style: TextStyle(color: Colors.grey.shade500)))
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -286,12 +290,14 @@ class _DoctorScreenState extends State<DoctorScreen>
                                 Text(p['email'] ?? '',
                                     style: const TextStyle(fontSize: 12)),
                                 if (p['cnp_pacient'] != null)
-                                  Text('CNP: ${p['cnp_pacient']}',
+                                  Text(_tr("cnp") + ': ${p['cnp_pacient']}',
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.shade500)),
                                 if (p['hospital'] != null)
-                                  Text('Spital: ${p['hospital']['name']}',
+                                  Text(
+                                      _tr("hospital") +
+                                          ': ${p['hospital']['name']}',
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.shade500)),
@@ -352,11 +358,11 @@ class _DoctorScreenState extends State<DoctorScreen>
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Pacient: ${_selectedPatient!['name']}',
+                Text(_tr('patient') + ': ${_selectedPatient!['name']}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: Color(0xFF1A5276))),
                 if (_selectedPatient!['cnp_pacient'] != null)
-                  Text('CNP: ${_selectedPatient!['cnp_pacient']}',
+                  Text(_tr('cnp') + ': ${_selectedPatient!['cnp_pacient']}',
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFF1A5276))),
               ],
@@ -366,7 +372,7 @@ class _DoctorScreenState extends State<DoctorScreen>
                 setState(() => _selectedPatient = null);
                 _loadDocs();
               },
-              child: const Text('Toti',
+              child: Text(_tr("all_patients"),
                   style: TextStyle(color: Color(0xFF1A5276))),
             ),
           ]),

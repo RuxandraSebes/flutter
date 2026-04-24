@@ -182,10 +182,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.language),
-            tooltip: 'Language',
             onPressed: () => showDialog(
               context: context,
-              builder: (_) => const LanguageSelectorDialog(),
+              builder: (_) =>
+                  const LanguageSelectorDialog(), // Folosește dialogul din language_provider.dart
             ),
           ),
         ],

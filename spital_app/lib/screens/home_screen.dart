@@ -52,18 +52,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchDocuments() async {
     setState(() => _loadingDocs = true);
     final docs = await _docService.getDocuments();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _documents = docs;
         _loadingDocs = false;
       });
+    }
   }
 
   Future<void> _fetchUnread() async {
     final convs = await _chatService.getConversations();
     if (mounted) {
       int total = 0;
-      for (final c in convs) total += (c['unread_count'] ?? 0) as int;
+      for (final c in convs) {
+        total += (c['unread_count'] ?? 0) as int;
+      }
       setState(() => _unreadMessages = total);
     }
   }
@@ -89,9 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // REQ-10: Fixed — use _deletingIds guard to prevent duplicate calls
   Future<void> _deleteDocument(int id, String name) async {
-    if (_deletingIds.contains(id)) return; // guard duplicate dismissal
+    if (_deletingIds.contains(id)) return;
     _deletingIds.add(id);
     _clearInlineError();
 
@@ -217,7 +219,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // REQ-11: Show only unread count (no total messages) in picker
   void _showPatientPickerDialog(List<Map<String, dynamic>> patients) {
     showDialog(
       context: context,
@@ -304,7 +305,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontSize: 12,
                                         color: Colors.grey.shade500)),
                             ])),
-                        // REQ-11: Only show unread count, no total
                         if (unread > 0)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -380,15 +380,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (_) => const RedeemAccessCodeScreen()));
                   if (result == true) _fetchDocuments();
                 }),
-          // Language switcher
+          // REQ-13: Language switcher using the specialized provider dialog
           IconButton(
             icon: const Icon(Icons.language),
             tooltip: 'Language',
             onPressed: () => showDialog(
-                context: context,
-                builder: (_) => const LanguageSelectorDialog()),
+              context: context,
+              builder: (_) => const LanguageSelectorDialog(),
+            ),
           ),
-          // Chat with unread badge
           Stack(children: [
             IconButton(
                 icon: const Icon(Icons.chat_bubble_outline),
@@ -433,7 +433,6 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : null,
       body: Column(children: [
-        // REQ-5: Patient access + management rows
         if (u.isPatient) ...[
           _patientAccessBanner(),
           _managementRow(
@@ -449,11 +448,10 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ],
-        // REQ-6: Companion associate + management rows
         if (u.isCompanion) ...[
           _companionAccessBanner(),
           _managementRow(
-            icon: Icons.key_off_outlined, // broken key icon for differentiation
+            icon: Icons.key_off_outlined,
             label: _tr('my_patients'),
             color: Colors.deepOrange,
             onTap: () {
@@ -465,9 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ],
-
         if (_inlineError != null) _inlineErrorBanner(_inlineError!),
-
         Expanded(
           child: RefreshIndicator(
             onRefresh: _fetchDocuments,
@@ -561,7 +557,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-  // REQ-5 / REQ-6: Management row with distinct styling
   Widget _managementRow({
     required IconData icon,
     required String label,
@@ -727,32 +722,37 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
     return Dismissible(
       key: Key('doc-${doc['id']}'),
       direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Șterge document?'),
+            content: Text('Ștergi "${doc['name']}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Anulează'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Șterge'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirm == true) {
+          onDelete();
+          return true;
+        }
+        return false;
+      },
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-            color: Colors.red.shade600,
-            borderRadius: BorderRadius.circular(12)),
+        color: Colors.red,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
-        child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.delete_outline, color: Colors.white, size: 28),
-              SizedBox(height: 4),
-              Text('Șterge',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-            ]),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
-      // REQ-10: confirmDismiss prevents the actual deletion; onDelete handles it
-      confirmDismiss: (_) async =>
-          false, // always return false — handle manually via dialog
-      onUpdate: (details) {
-        // When fully swiped, trigger the delete flow
-        if (details.reached) onDelete();
-      },
       child: card,
     );
   }

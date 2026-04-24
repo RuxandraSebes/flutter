@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordCtrl.text;
 
     if (email.isEmpty || password.isEmpty) {
-      _snack('Completează toate câmpurile', isError: true);
+      _snack(_tr('fill_all_fields'), isError: true);
       return;
     }
 
@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
         (_) => false,
       );
     } else {
-      _snack(result['message'] ?? 'Eroare', isError: true);
+      _snack(result['message'] ?? _tr('error'), isError: true);
     }
   }
 
@@ -73,13 +73,15 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 SvgPicture.asset(
                   'assets/logo.svg',
-                  height: 120, // Poți ajusta înălțimea aici
+                  height: 120,
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 20),
-                Text('Portal UPU',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: Colors.grey.shade600)),
+                Text(
+                  _tr('portal_upu'),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.grey.shade600),
+                ),
                 const SizedBox(height: 40),
                 Card(
                   elevation: 2,
@@ -89,14 +91,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Column(children: [
                       _field(
-                          controller: _emailCtrl,
-                          label: 'Email',
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress),
+                        controller: _emailCtrl,
+                        label: _tr('email'),
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
                       const SizedBox(height: 16),
                       _field(
                         controller: _passwordCtrl,
-                        label: 'Parolă',
+                        label: _tr('password'),
                         icon: Icons.lock_outline,
                         obscure: _obscure,
                         suffix: IconButton(
@@ -124,10 +127,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              : const Text('Intră în cont',
-                                  style: TextStyle(
+                              : Text(
+                                  _tr('login'),
+                                  style: const TextStyle(
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w600)),
+                                      fontWeight: FontWeight.w600),
+                                ),
                         ),
                       ),
                     ]),
@@ -136,11 +141,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterScreen())),
-                  child: const Text('Nu ai cont? Înregistrează-te',
-                      style: TextStyle(color: Color(0xFF1A5276))),
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  ),
+                  child: Text(
+                    _tr('no_account_register'),
+                    style: const TextStyle(color: Color(0xFF1A5276)),
+                  ),
                 ),
               ],
             ),

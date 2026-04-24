@@ -19,14 +19,21 @@ class AppLocalizations {
 
   static const Map<String, Map<String, String>> _translations = {
     'ro': {
-      // Auth
-      'login': 'Intră în cont',
-      'logout': 'Deconectare',
-      'register': 'Înregistrează-te',
+      'fill_all_fields': 'Completează toate câmpurile',
+      'error': 'Eroare',
+
+      'portal_upu': 'Portal UPU',
       'email': 'Email',
       'password': 'Parolă',
+      'login': 'Intră în cont',
+      'no_account_register': 'Nu ai cont? Înregistrează-te',
+      // Auth
+
+      'logout': 'Deconectare',
+      'register': 'Înregistrează-te',
+
       'name': 'Nume complet',
-      'portal_upu': 'Portal UPU',
+
       'no_account': 'Nu ai cont? Înregistrează-te',
       'have_account': 'Ai deja cont? Loghează-te',
       'create_account': 'Creare cont',
@@ -173,7 +180,6 @@ class AppLocalizations {
           'Necesar pentru identificarea corectă în sistemul spitalului',
 
       // Errors
-      'fill_all_fields': 'Completează toate câmpurile',
       'invalid_email': 'Introdu o adresă de email validă.',
       'enter_name': 'Introdu numele complet.',
       'password_short': 'Parola trebuie să aibă minim 6 caractere.',
@@ -205,6 +211,36 @@ class AppLocalizations {
       'role': 'Rol',
       'no_patients': 'Niciun pacient înregistrat',
       'search_patient_hint': 'Cauta pacient (nume, email, CNP)...',
+      'downloading_document': 'Se descarcă documentul...',
+      'logout_confirm': 'Ești sigur că vrei să ieși din cont?',
+      'delete_document_confirm': 'Ștergi documentul?',
+      'hipocrate_ingest_status': 'Status Ingestie Hipocrate',
+      'monitored_directory': 'Director monitorizat',
+      'recent_ingestions': 'Ingestii recente',
+      'no_ingestions': 'Nicio ingestie înregistrată',
+      'link_companion_patient': 'Leagă însoțitor de pacient',
+      'no_results': 'Niciun rezultat',
+      'access_invitation': 'Invitație acces dosar',
+      'invite_received': 'Invitație primită',
+      'be_first_message': 'Fii primul care trimite un mesaj.',
+      'chat': 'Mesaje', 'successful_association': 'Asociere reușită!',
+      'give_companion_access': 'Oferă acces aparținător',
+      'access_code': 'Codul tău de acces',
+      'email_address': 'Adresa de email',
+      'generate_new_code': 'Generează un cod nou',
+      'send_another_invite': 'Trimite altă invitație',
+      'go_to_documents': 'Mergi la documente',
+      'invite_medical_access': 'Invitație de acces dosar medical',
+      'invite_new_companion_account': 'Cont nou de Însoțitor',
+      'already_have_account_login': 'Am deja cont — Loghează-mă',
+      'global_admin_panel': 'Panou Global Admin',
+      'no_hospitals': 'Niciun spital înregistrat',
+      'no_users': 'Niciun utilizator',
+      'no_patients_registered': 'Niciun pacient inregistrat',
+      'no_search_results': 'Niciun rezultat',
+      'patients': 'Pacienți',
+      'save_and_continue': 'Salvează și continuă',
+      'language': 'Limbă / Language',
     },
     'en': {
       'login': 'Sign In',
@@ -479,7 +515,6 @@ class AppLocalizations {
       'save': 'Mentés',
       'create': 'Létrehozás',
       'edit': 'Szerkesztés',
-      'cancel': 'Mégsem',
       'confirm': 'Megerősítés',
       'refresh': 'Frissítés',
       'retry': 'Újrapróbálás',

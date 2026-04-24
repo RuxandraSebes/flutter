@@ -4,7 +4,7 @@ import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'user_form_dialog.dart';
-import 'hospital_form_dialog.dart';
+import 'hospital_form_dialog.dart' as hfd;
 
 class GlobalAdminScreen extends StatefulWidget {
   final UserModel user;
@@ -76,7 +76,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
 
   Future<void> _addHospital() async {
     final result = await showDialog<Map<String, dynamic>>(
-        context: context, builder: (_) => const HospitalFormDialog());
+        context: context, builder: (_) => const hfd.HospitalFormDialog());
     if (result == null) return;
     final r = await _admin.createHospital(result);
     if (r['success'] == true) {
@@ -88,7 +88,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
 
   Future<void> _editHospital(Map<String, dynamic> h) async {
     final result = await showDialog<Map<String, dynamic>>(
-        context: context, builder: (_) => HospitalFormDialog(existing: h));
+        context: context, builder: (_) => hfd.HospitalFormDialog(existing: h));
     if (result == null) return;
     final r = await _admin.updateHospital(h['id'], result);
     if (r['success'] == true) {

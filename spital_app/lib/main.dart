@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:spital_visu_upu/i18n/language_provider.dart';
+import 'package:spital_visu_upu/i18n/translations.dart';
 import 'models/user_model.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -10,38 +12,51 @@ import 'screens/invite_token_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const LanguageProvider(
+      // Adaugă acest provider
+      child: MyApp(),
+    ),
+  );
 }
 
+// lib/main.dart
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Obține provider-ul pentru a accesa locale-ul curent
+    final lp = LanguageProvider.of(context);
+
     return MaterialApp(
       title: 'Spital Vișeu UPU',
       debugShowCheckedModeBanner: false,
+
+      // 1. Setează locale-ul curent
+      locale: lp?.locale ?? const Locale('ro'),
+
+      // 2. Adaugă delegații necesari
+      localizationsDelegates: const [
+        AppLocalizationsDelegate(), // Delegatul tău din translations.dart
+        // Poți adăuga și GlobalMaterialLocalizations.delegate dacă ai pachetul instalat
+      ],
+
+      // 3. Limbi suportate
+      supportedLocales: const [
+        Locale('ro'),
+        Locale('en'),
+        Locale('hu'),
+        Locale('uk'),
+        Locale('sk'),
+      ],
+
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A5276),
-          brightness: Brightness.light,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A5276)),
         useMaterial3: true,
       ),
       home: const AuthGate(),
-      // Deep-link routing — handles spitalapp://invite/<token>
-      onGenerateRoute: (settings) {
-        final name = settings.name ?? '';
-        if (name.startsWith('/invite/')) {
-          final token = name.replaceFirst('/invite/', '');
-          if (token.isNotEmpty) {
-            return MaterialPageRoute(
-              builder: (_) => InviteTokenScreen(token: token),
-            );
-          }
-        }
-        return null;
-      },
+      // ... restul codului (onGenerateRoute)
     );
   }
 }

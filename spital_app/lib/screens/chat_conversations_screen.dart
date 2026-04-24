@@ -1,8 +1,7 @@
-// REQ-11: Centered popup with number of messages per conversation
-
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../models/user_model.dart';
+import '../i18n/language_provider.dart'; // Import necesar
 import 'chat_screen.dart';
 
 class ChatConversationsScreen extends StatefulWidget {
@@ -19,6 +18,9 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
   final _service = ChatService();
   List<Map<String, dynamic>> _conversations = [];
   bool _loading = true;
+
+  // Metodă helper pentru traduceri
+  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   @override
   void initState() {
@@ -44,9 +46,8 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title:
-            const Text('Mesaje', style: TextStyle(fontWeight: FontWeight.w600)),
-        // REQ-11: centered title
+        title: Text(_tr('chat_title'),
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
@@ -65,8 +66,8 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                     itemBuilder: (_, i) {
                       final conv = _conversations[i];
                       final unread = (conv['unread_count'] ?? 0) as int;
-                      // REQ-11: show total message count per conversation
                       final total = (conv['total_count'] ?? 0) as int;
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(
@@ -90,7 +91,7 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                conv['last_message'] ?? 'Niciun mesaj',
+                                conv['last_message'] ?? _tr('no_message'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -103,10 +104,9 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                                       : FontWeight.normal,
                                 ),
                               ),
-                              // REQ-11: show total message count
                               if (total > 0)
                                 Text(
-                                  '$total mesaj${total == 1 ? '' : 'e'}',
+                                  '$total ${total == 1 ? _tr('message_count_singular') : _tr('messages_count')}',
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.grey.shade400),
@@ -169,13 +169,13 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
           Icon(Icons.chat_bubble_outline,
               size: 72, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          Text('Niciun mesaj',
+          Text(_tr('no_messages'),
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.grey.shade500)),
           const SizedBox(height: 8),
-          Text('Pacienții pot iniția conversații din aplicația lor.',
+          Text(_tr('patients_initiate'),
               style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
               textAlign: TextAlign.center),
         ]),
