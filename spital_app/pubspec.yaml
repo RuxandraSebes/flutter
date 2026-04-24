@@ -7,11 +7,9 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  flutter_svg: ^2.0.10+1
   flutter:
     sdk: flutter
-    uses-material-design: true
-    assets:
-      - assets/logo.png
 
   # Networking
   http: ^1.2.0
@@ -39,3 +37,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/logo.svg

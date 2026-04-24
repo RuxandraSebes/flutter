@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
@@ -70,17 +71,12 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/logo.png',
+                SvgPicture.asset(
+                  'assets/logo.svg',
                   height: 120, // Poți ajusta înălțimea aici
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 20),
-                Text('Spital Vișeu de Sus',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1A5276))),
-                const SizedBox(height: 6),
                 Text('Portal UPU',
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: Colors.grey.shade600)),

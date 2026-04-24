@@ -16,10 +16,8 @@ class ClaimAccountScreen extends StatefulWidget {
 
   /// Returns true if this user was auto-created from Hipocrate ingestion.
   static bool needsClaim(UserModel user) {
-    final email = user.email ?? '';
-    final name = user.name ?? '';
-
-    return email.endsWith('@hipocrate.internal') || name.startsWith('Pacient ');
+    return user.email.endsWith('@hipocrate.internal') ||
+        user.name.startsWith('Pacient ');
   }
 }
 
@@ -34,8 +32,8 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
     super.initState();
     _nameCtrl.text = widget.user.name;
     // Don't pre-fill internal emails
-    if (!(widget.user.email ?? '').endsWith('@hipocrate.internal')) {
-      _emailCtrl.text = widget.user.email ?? '';
+    if (!widget.user.email.endsWith('@hipocrate.internal')) {
+      _emailCtrl.text = widget.user.email;
     }
   }
 
@@ -61,12 +59,6 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
 
     setState(() => _loading = true);
 
-    // Use the /me endpoint after updating via admin panel
-    // For now update via the auth service updateProfile method
-    final token = await _auth.getToken();
-    if (token == null) return;
-
-    // Patch user via API
     final result = await _auth.updateProfile(name: name, email: email);
     if (!mounted) return;
     setState(() => _loading = false);

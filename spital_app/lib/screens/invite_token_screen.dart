@@ -55,7 +55,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
         _redeemNow();
       } else if (user != null && !user.isCompanion) {
         setState(() => _error = 'Doar însoțitorii pot accepta invitații. '
-            'Conectează-te cu un cont de tip Aparținător.');
+            'Conectează-te cu un cont de tip Însoțitor.');
       }
     }
   }
@@ -73,10 +73,11 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
     if (result['success'] == true) {
       setState(() {
         _success = true;
-        _patientName = result['patient']?['name'];
+        _patientName = result['patient']?['name'] as String?;
       });
     } else {
-      setState(() => _error = result['message'] ?? 'Token invalid sau expirat');
+      setState(() =>
+          _error = result['message'] as String? ?? 'Token invalid sau expirat');
     }
   }
 
@@ -263,7 +264,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
                     color: Color(0xFF1A5276))),
             const SizedBox(height: 8),
             Text(
-              'Conectează-te sau creează un cont de tip Aparținător '
+              'Conectează-te sau creează un cont de tip Însoțitor '
               'pentru a accepta această invitație.',
               style: TextStyle(
                   fontSize: 13, color: Colors.grey.shade600, height: 1.4),
@@ -280,7 +281,6 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               await Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()));
               if (!mounted) return;
-              // After login, check if now authenticated
               final loggedIn = await _auth.isLoggedIn();
               if (loggedIn) {
                 setState(() => _isLoggedIn = true);
@@ -319,7 +319,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               }
             },
             icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Cont nou de Aparținător',
+            label: const Text('Cont nou de Însoțitor',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF1A5276),

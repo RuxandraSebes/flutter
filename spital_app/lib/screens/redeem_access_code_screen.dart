@@ -5,163 +5,113 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/access_code_service.dart';
 
-class GenerateAccessCodeScreen extends StatefulWidget {
-  const GenerateAccessCodeScreen({super.key});
+class RedeemAccessCodeScreen extends StatefulWidget {
+  const RedeemAccessCodeScreen({super.key});
 
   @override
-  State<GenerateAccessCodeScreen> createState() =>
-      _GenerateAccessCodeScreenState();
+  State<RedeemAccessCodeScreen> createState() => _RedeemAccessCodeScreenState();
 }
 
-class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
+class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
     with TickerProviderStateMixin {
   late final TabController _tabs;
   final _service = AccessCodeService();
 
   // ── Numeric code state ──────────────────────────────────────────────────────
-  String? _code;
-  int _secondsLeft = 0;
-  bool _loadingCode = false;
-  bool _expired = false;
-  Timer? _timer;
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
+  final _codeCtrl = TextEditingController();
+  bool _redeemingCode = false;
+  bool _codeSuccess = false;
+  String? _codePatientName;
 
-  // ── Email invite state ──────────────────────────────────────────────────────
-  final _emailCtrl = TextEditingController();
-  bool _sendingEmail = false;
-  String? _sentToken;
-  bool? _mailSent;
-  String? _emailSentTo;
+  // ── Email token state ───────────────────────────────────────────────────────
+  final _tokenCtrl = TextEditingController();
+  bool _redeemingToken = false;
+  bool _tokenSuccess = false;
+  String? _tokenPatientName;
 
   // REQ-9: inline error states per tab
   String? _codeError;
-  String? _emailError;
+  String? _tokenError;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _pulseCtrl.dispose();
     _tabs.dispose();
-    _emailCtrl.dispose();
+    _codeCtrl.dispose();
+    _tokenCtrl.dispose();
     super.dispose();
   }
 
-  // ── Code logic ──────────────────────────────────────────────────────────────
+  // ── Numeric code redeem ─────────────────────────────────────────────────────
 
-  Future<void> _generateCode() async {
-    setState(() {
-      _loadingCode = true;
-      _expired = false;
-      _code = null;
-      _codeError = null;
-    });
-    _timer?.cancel();
-
-    final result = await _service.generateCode();
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      setState(() {
-        _code = result['code'];
-        _secondsLeft = result['expires_in'] ?? 300;
-        _loadingCode = false;
-      });
-      _startCountdown();
-    } else {
-      setState(() {
-        _loadingCode = false;
-        // REQ-9: set inline error
-        _codeError = result['message'] ?? 'Eroare la generarea codului';
-      });
-    }
-  }
-
-  void _startCountdown() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      setState(() {
-        _secondsLeft--;
-        if (_secondsLeft <= 0) {
-          _expired = true;
-          _code = null;
-          t.cancel();
-        }
-      });
-    });
-  }
-
-  void _copyCode() {
-    if (_code == null) return;
-    Clipboard.setData(ClipboardData(text: _code!));
-    _showSnack('Cod copiat în clipboard');
-  }
-
-  Color get _timerColor {
-    if (_secondsLeft > 120) return Colors.green.shade600;
-    if (_secondsLeft > 30) return Colors.orange.shade600;
-    return Colors.red.shade600;
-  }
-
-  String get _timerLabel {
-    final m = _secondsLeft ~/ 60;
-    final s = _secondsLeft % 60;
-    return m > 0 ? '$m min ${s.toString().padLeft(2, '0')} sec' : '$s secunde';
-  }
-
-  // ── Email logic ─────────────────────────────────────────────────────────────
-
-  Future<void> _sendEmailInvite() async {
-    final email = _emailCtrl.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      setState(() => _emailError = 'Introdu o adresă de email validă.');
+  Future<void> _redeemCode() async {
+    final code = _codeCtrl.text.trim();
+    if (code.isEmpty || code.length != 6) {
+      setState(() => _codeError = 'Introdu un cod de 6 cifre.');
       return;
     }
 
     setState(() {
-      _sendingEmail = true;
-      _emailError = null;
+      _redeemingCode = true;
+      _codeError = null;
+      _codeSuccess = false;
     });
-    final result = await _service.sendEmailInvite(email);
+
+    final result = await _service.redeemCode(code);
     if (!mounted) return;
-    setState(() => _sendingEmail = false);
+    setState(() => _redeemingCode = false);
 
     if (result['success'] == true) {
       setState(() {
-        _sentToken = result['invite_token'];
-        _mailSent = result['mail_sent'] ?? false;
-        _emailSentTo = email;
-        _emailError = null;
+        _codeSuccess = true;
+        _codePatientName = result['patient']?['name'];
       });
-      _emailCtrl.clear();
+      _codeCtrl.clear();
+      // Return true to caller so HomeScreen can refresh docs
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) Navigator.pop(context, true);
     } else {
-      // REQ-9: inline error below send button
-      setState(() =>
-          _emailError = result['message'] ?? 'Eroare la trimiterea invitației');
+      setState(
+          () => _codeError = result['message'] ?? 'Cod invalid sau expirat.');
     }
   }
 
-  void _copyToken() {
-    if (_sentToken == null) return;
-    Clipboard.setData(ClipboardData(text: _sentToken!));
-    _showSnack('Token copiat în clipboard');
+  // ── Email token redeem ──────────────────────────────────────────────────────
+
+  Future<void> _redeemToken() async {
+    final token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      setState(() => _tokenError = 'Introdu tokenul de invitație.');
+      return;
+    }
+
+    setState(() {
+      _redeemingToken = true;
+      _tokenError = null;
+      _tokenSuccess = false;
+    });
+
+    final result = await _service.redeemEmailInvite(token);
+    if (!mounted) return;
+    setState(() => _redeemingToken = false);
+
+    if (result['success'] == true) {
+      setState(() {
+        _tokenSuccess = true;
+        _tokenPatientName = result['patient']?['name'];
+      });
+      _tokenCtrl.clear();
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) Navigator.pop(context, true);
+    } else {
+      setState(() =>
+          _tokenError = result['message'] ?? 'Token invalid sau expirat.');
+    }
   }
 
   void _showSnack(String msg) {
@@ -183,7 +133,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Oferă acces însoțitor'),
+        title: const Text('Asociază-te cu un pacient'),
         bottom: TabBar(
           controller: _tabs,
           indicatorColor: Colors.white,
@@ -191,13 +141,13 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.dialpad), text: 'Cod numeric'),
-            Tab(icon: Icon(Icons.email_outlined), text: 'Invitație email'),
+            Tab(icon: Icon(Icons.token_outlined), text: 'Token invitație'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabs,
-        children: [_codeTab(), _emailTab()],
+        children: [_codeTab(), _tokenTab()],
       ),
     );
   }
@@ -205,6 +155,13 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
   // ── Tab 1: Numeric code ─────────────────────────────────────────────────────
 
   Widget _codeTab() {
+    if (_codeSuccess) {
+      return _successView(
+          'Asociere reușită!',
+          'Ești acum asociat pacientului${_codePatientName != null ? '\n$_codePatientName' : ''}.\n'
+              'Poți vizualiza documentele sale medicale.');
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -212,132 +169,115 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
         children: [
           _howItWorksCard(
             steps: const [
-              ('1', 'Apasă „Generează cod"'),
-              ('2', 'Comunică cele 6 cifre însoțitorului'),
-              ('3', 'Însoțitorul introduce codul în aplicație'),
+              ('1', 'Cere pacientului să genereze un cod în aplicația sa'),
+              ('2', 'Introdu cele 6 cifre mai jos'),
+              ('3', 'Apasă „Activează codul"'),
             ],
-            note: 'Codul este valabil 5 minute.',
+            note: 'Codul expiră după 5 minute.',
           ),
           const SizedBox(height: 32),
 
-          // Code display
-          if (_loadingCode)
-            const CircularProgressIndicator(color: Color(0xFF1A5276))
-          else if (_code != null && !_expired) ...[
-            ScaleTransition(
-              scale: _pulseAnim,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A5276),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1A5276).withOpacity(0.35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(children: [
-                  const Text('Codul tău de acces',
-                      style: TextStyle(color: Colors.white70, fontSize: 14)),
-                  const SizedBox(height: 10),
-                  Text(
-                    _code!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 52,
+          // Code input
+          Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(children: [
+                const Text('Cod de acces (6 cifre)',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A5276))),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _codeCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) {
+                    if (_codeError != null) setState(() => _codeError = null);
+                  },
+                  style: const TextStyle(
+                      fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 12,
+                      letterSpacing: 10,
+                      color: Color(0xFF1A5276)),
+                  decoration: InputDecoration(
+                    hintText: '------',
+                    hintStyle: TextStyle(
+                        color: Colors.grey.shade300,
+                        letterSpacing: 10,
+                        fontSize: 32),
+                    counterText: '',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF1A5276), width: 2)),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onSubmitted: (_) => _redeemCode(),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _redeemingCode ? null : _redeemCode,
+                    icon: _redeemingCode
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.link),
+                    label: Text(
+                      _redeemingCode ? 'Se verifică...' : 'Activează codul',
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A5276),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
+                ),
+
+                // REQ-9: Inline error below button
+                if (_codeError != null) ...[
                   const SizedBox(height: 14),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.timer_outlined, color: _timerColor, size: 18),
-                    const SizedBox(width: 6),
-                    Text(_timerLabel,
-                        style: TextStyle(
-                            color: _timerColor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15)),
-                  ]),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _copyCode,
-              icon: const Icon(Icons.copy, size: 18),
-              label: const Text('Copiază codul'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF1A5276),
-                side: const BorderSide(color: Color(0xFF1A5276)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ] else if (_expired) ...[
-            _expiredCard(),
-          ] else ...[
-            Container(
-              height: 120,
-              alignment: Alignment.center,
-              child: Text(
-                'Apasă butonul pentru a genera un cod',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 32),
-
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: _loadingCode ? null : _generateCode,
-              icon: _loadingCode
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : Icon(_code != null && !_expired
-                      ? Icons.refresh
-                      : Icons.generating_tokens),
-              label: Text(
-                _code != null && !_expired
-                    ? 'Regenerează codul'
-                    : 'Generează cod',
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A5276),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
+                  _inlineErrorWidget(_codeError!,
+                      onDismiss: () => setState(() => _codeError = null)),
+                ],
+              ]),
             ),
           ),
-
-          // REQ-9: Inline error below the generate button
-          if (_codeError != null) ...[
-            const SizedBox(height: 16),
-            _inlineErrorWidget(_codeError!,
-                onDismiss: () => setState(() => _codeError = null)),
-          ],
         ],
       ),
     );
   }
 
-  // ── Tab 2: Email invite ─────────────────────────────────────────────────────
+  // ── Tab 2: Email token ──────────────────────────────────────────────────────
 
-  Widget _emailTab() {
+  Widget _tokenTab() {
+    if (_tokenSuccess) {
+      return _successView(
+          'Invitație acceptată!',
+          'Ești acum asociat pacientului${_tokenPatientName != null ? '\n$_tokenPatientName' : ''}.\n'
+              'Poți vizualiza documentele sale medicale.');
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -345,11 +285,11 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
         children: [
           _howItWorksCard(
             steps: const [
-              ('1', 'Introdu adresa de email a însoțitorului'),
-              ('2', 'Apasă „Trimite invitație"'),
-              ('3', 'Însoțitorul primește un link pe email'),
+              ('1', 'Pacientul ți-a trimis un token prin email'),
+              ('2', 'Copiază tokenul din email'),
+              ('3', 'Inserează-l mai jos și apasă „Acceptă invitația"'),
             ],
-            note: 'Link-ul este valabil 24 de ore.',
+            note: 'Tokenul expiră după 24 de ore.',
           ),
           const SizedBox(height: 28),
           Card(
@@ -361,23 +301,26 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Adresa de email',
+                  const Text('Token de invitație',
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1A5276))),
                   const SizedBox(height: 10),
                   TextField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _tokenCtrl,
                     autocorrect: false,
                     onChanged: (_) {
-                      if (_emailError != null)
-                        setState(() => _emailError = null);
+                      if (_tokenError != null)
+                        setState(() => _tokenError = null);
                     },
+                    style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: Color(0xFF1A5276)),
                     decoration: InputDecoration(
-                      hintText: 'insotitorul@exemplu.ro',
-                      prefixIcon: const Icon(Icons.email_outlined,
+                      hintText: 'Inserează tokenul primit prin email...',
+                      prefixIcon: const Icon(Icons.token_outlined,
                           color: Color(0xFF1A5276)),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -391,23 +334,25 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                       filled: true,
                       fillColor: Colors.grey.shade50,
                     ),
-                    onSubmitted: (_) => _sendEmailInvite(),
+                    onSubmitted: (_) => _redeemToken(),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
-                      onPressed: _sendingEmail ? null : _sendEmailInvite,
-                      icon: _sendingEmail
+                      onPressed: _redeemingToken ? null : _redeemToken,
+                      icon: _redeemingToken
                           ? const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.send_outlined),
+                          : const Icon(Icons.check_circle_outline),
                       label: Text(
-                        _sendingEmail ? 'Se trimite...' : 'Trimite invitație',
+                        _redeemingToken
+                            ? 'Se verifică...'
+                            : 'Acceptă invitația',
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600),
                       ),
@@ -420,20 +365,16 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                     ),
                   ),
 
-                  // REQ-9: Inline error below send button
-                  if (_emailError != null) ...[
+                  // REQ-9: Inline error below button
+                  if (_tokenError != null) ...[
                     const SizedBox(height: 14),
-                    _inlineErrorWidget(_emailError!,
-                        onDismiss: () => setState(() => _emailError = null)),
+                    _inlineErrorWidget(_tokenError!,
+                        onDismiss: () => setState(() => _tokenError = null)),
                   ],
                 ],
               ),
             ),
           ),
-          if (_sentToken != null) ...[
-            const SizedBox(height: 24),
-            _inviteSentCard(),
-          ],
         ],
       ),
     );
@@ -441,7 +382,40 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
 
   // ── Shared widgets ──────────────────────────────────────────────────────────
 
-  // REQ-9: Reusable inline error widget
+  Widget _successView(String title, String body) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+                color: Colors.green.shade50, shape: BoxShape.circle),
+            child: Icon(Icons.check_circle_outline,
+                size: 60, color: Colors.green.shade600),
+          ),
+          const SizedBox(height: 24),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A5276))),
+          const SizedBox(height: 12),
+          Text(body,
+              style: TextStyle(
+                  fontSize: 15, color: Colors.grey.shade700, height: 1.5),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          const CircularProgressIndicator(color: Color(0xFF1A5276)),
+          const SizedBox(height: 12),
+          Text('Redirecționare...',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+        ]),
+      ),
+    );
+  }
+
   Widget _inlineErrorWidget(String message, {VoidCallback? onDismiss}) {
     return Container(
       width: double.infinity,
@@ -450,13 +424,6 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.red.shade300, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.shade100,
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
@@ -492,7 +459,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(children: [
-          const Icon(Icons.people_alt_outlined,
+          const Icon(Icons.vpn_key_outlined,
               size: 40, color: Color(0xFF1A5276)),
           const SizedBox(height: 10),
           const Text('Cum funcționează?',
@@ -534,112 +501,4 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                   style: TextStyle(color: Colors.grey.shade700, fontSize: 14))),
         ]),
       );
-
-  Widget _expiredCard() => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red.shade200),
-        ),
-        child: Column(children: [
-          Icon(Icons.timer_off_outlined, size: 48, color: Colors.red.shade400),
-          const SizedBox(height: 8),
-          Text('Codul a expirat',
-              style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16)),
-          const SizedBox(height: 4),
-          Text('Generează un cod nou',
-              style: TextStyle(color: Colors.red.shade400, fontSize: 13)),
-        ]),
-      );
-
-  Widget _inviteSentCard() {
-    final sent = _mailSent == true;
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(children: [
-          Icon(
-            sent ? Icons.mark_email_read_outlined : Icons.info_outline,
-            size: 48,
-            color: sent ? Colors.green.shade600 : Colors.orange.shade600,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            sent ? 'Invitație trimisă!' : 'Token generat (email indisponibil)',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: sent ? Colors.green.shade700 : Colors.orange.shade700),
-            textAlign: TextAlign.center,
-          ),
-          if (_emailSentTo != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              sent
-                  ? 'Email trimis la $_emailSentTo'
-                  : 'Trimite manual tokenul de mai jos însoțitorului',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A5276).withOpacity(0.06),
-              borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: const Color(0xFF1A5276).withOpacity(0.2)),
-            ),
-            child: Column(children: [
-              Text('Token de invitație',
-                  style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 11,
-                      letterSpacing: 0.8)),
-              const SizedBox(height: 6),
-              SelectableText(
-                _sentToken!,
-                style: const TextStyle(
-                    color: Color(0xFF1A5276),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'monospace'),
-                textAlign: TextAlign.center,
-              ),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _copyToken,
-            icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copiază tokenul'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1A5276),
-              side: const BorderSide(color: Color(0xFF1A5276)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => setState(() {
-              _sentToken = null;
-              _mailSent = null;
-              _emailSentTo = null;
-            }),
-            child: const Text('Trimite altă invitație',
-                style: TextStyle(color: Colors.grey)),
-          ),
-        ]),
-      ),
-    );
-  }
 }
