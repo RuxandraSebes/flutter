@@ -1,5 +1,7 @@
 // REQ-12: CNP shown and required for patient AND companion
-// REQ-18: is_active only shown when editing (not on create forms)
+// REQ-11: is_active toggle REMOVED entirely (from both create and edit forms)
+// REQ-12: hospital field hidden when selected role is global_admin
+// REQ-12: license_number field REMOVED for doctors
 // REQ-9: inline error messages below the create button
 
 import 'package:flutter/material.dart';
@@ -26,11 +28,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
   final _passwordCtrl = TextEditingController();
   final _cnpCtrl = TextEditingController();
   final _specCtrl = TextEditingController();
-  final _licCtrl = TextEditingController();
 
   String _role = 'patient';
   int? _hospitalId;
-  bool _isActive = true;
   bool _obscure = true;
 
   // REQ-9: inline validation error
@@ -46,6 +46,12 @@ class _UserFormDialogState extends State<UserFormDialog> {
   bool get _needsCnp => _role == 'patient' || _role == 'companion';
   bool get _needsDoctor => _role == 'doctor';
 
+  // REQ-12: Hospital field should NOT appear for global_admin role
+  bool get _showHospital =>
+      !widget.isHospitalAdmin &&
+      widget.hospitals.isNotEmpty &&
+      _role != 'global_admin';
+
   @override
   void initState() {
     super.initState();
@@ -55,10 +61,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
       _emailCtrl.text = e['email'] ?? '';
       _cnpCtrl.text = e['cnp_pacient'] ?? '';
       _specCtrl.text = e['specialization'] ?? '';
-      _licCtrl.text = e['license_number'] ?? '';
       _role = e['role'] ?? 'patient';
       _hospitalId = e['hospital_id'];
-      _isActive = e['is_active'] ?? true;
+      // REQ-11: is_active intentionally NOT loaded — field removed entirely
     } else {
       _role = _allowedRoles.first;
     }
@@ -72,7 +77,6 @@ class _UserFormDialogState extends State<UserFormDialog> {
       _passwordCtrl,
       _cnpCtrl,
       _specCtrl,
-      _licCtrl,
     ]) {
       c.dispose();
     }
@@ -116,14 +120,12 @@ class _UserFormDialogState extends State<UserFormDialog> {
       'name': _nameCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
       'role': _role,
-      // REQ-18: is_active only sent on edit
-      if (_isEdit) 'is_active': _isActive,
+      // REQ-11: is_active NEVER sent — removed entirely
       if (!_isEdit) 'password': _passwordCtrl.text,
       if (_cnpCtrl.text.isNotEmpty) 'cnp_pacient': _cnpCtrl.text.trim(),
       if (_specCtrl.text.isNotEmpty) 'specialization': _specCtrl.text.trim(),
-      if (_licCtrl.text.isNotEmpty) 'license_number': _licCtrl.text.trim(),
-      if (_hospitalId != null && !widget.isHospitalAdmin)
-        'hospital_id': _hospitalId,
+      // REQ-12: license_number removed from doctor form
+      if (_hospitalId != null && _showHospital) 'hospital_id': _hospitalId,
     };
 
     Navigator.pop(context, fields);
@@ -168,11 +170,15 @@ class _UserFormDialogState extends State<UserFormDialog> {
                   .toList(),
               onChanged: (v) {
                 _clearError();
-                setState(() => _role = v ?? _role);
+                setState(() {
+                  _role = v ?? _role;
+                  // REQ-12: clear hospital when switching to global_admin
+                  if (_role == 'global_admin') _hospitalId = null;
+                });
               },
             ),
-            // Hospital dropdown (global admin only)
-            if (!widget.isHospitalAdmin && widget.hospitals.isNotEmpty) ...[
+            // REQ-12: Hospital dropdown — hidden for global_admin role
+            if (_showHospital) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<int?>(
                 value: _hospitalId,
@@ -196,31 +202,13 @@ class _UserFormDialogState extends State<UserFormDialog> {
                 type: TextInputType.number,
               ),
             ],
+            // REQ-12: Only specialization for doctors — license_number removed
             if (_needsDoctor) ...[
               const SizedBox(height: 12),
               _field(
                   _specCtrl, 'Specializare', Icons.medical_services_outlined),
-              const SizedBox(height: 12),
-              _field(_licCtrl, 'Număr licență', Icons.assignment_outlined),
             ],
-            // REQ-18: Active toggle ONLY on edit, not on create
-            if (_isEdit) ...[
-              const SizedBox(height: 12),
-              Row(children: [
-                const Icon(Icons.toggle_on_outlined,
-                    size: 18, color: Color(0xFF1A5276)),
-                const SizedBox(width: 8),
-                const Text('Cont activ',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w500, color: Color(0xFF1A5276))),
-                const Spacer(),
-                Switch(
-                  value: _isActive,
-                  onChanged: (v) => setState(() => _isActive = v),
-                  activeColor: const Color(0xFF1A5276),
-                ),
-              ]),
-            ],
+            // REQ-11: is_active toggle REMOVED entirely — no longer shown anywhere
             const SizedBox(height: 16),
             // Action buttons
             Row(
