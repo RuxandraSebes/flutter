@@ -1,11 +1,11 @@
-// REQ-1: Open PDF on row click (removed separate view icon)
-// REQ-2: Swipe to delete PDF with confirmation
+// REQ-1: Open PDF on row click
+// REQ-2: Swipe to delete with confirmation (fixed duplicate message bug - REQ-10)
 // REQ-3: person_add icon for Grant Access
-// REQ-4: "Aparținător" → "Însoțitor" everywhere
-// REQ-5: Patient can view and remove companions
-// REQ-6: Companion can view and remove linked patients
-// REQ-9: Improved error message visibility (centered inline, below buttons, longer duration)
-// REQ-11: Companion patient-picker shown as centered dialog with message count
+// REQ-4: "Însoțitor" everywhere
+// REQ-5: Patient can view/remove companions — management row
+// REQ-6: Companion can view/remove patients — management row (broken key icon, different color)
+// REQ-9: Improved inline error messages
+// REQ-11: Chat picker as centered dialog with unread count only (no total messages)
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +13,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import '../services/chat_service.dart';
+import '../i18n/language_provider.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'generate_access_code_screen.dart';
@@ -35,9 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingDocs = true;
   bool _uploading = false;
   int _unreadMessages = 0;
-
-  // REQ-9: inline error state instead of snackbar-above-keyboard
   String? _inlineError;
+  // REQ-10: Track which doc IDs are being deleted to avoid duplicate dismissal
+  final Set<int> _deletingIds = {};
+
+  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   @override
   void initState() {
@@ -49,21 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchDocuments() async {
     setState(() => _loadingDocs = true);
     final docs = await _docService.getDocuments();
-    if (mounted) {
+    if (mounted)
       setState(() {
         _documents = docs;
         _loadingDocs = false;
       });
-    }
   }
 
   Future<void> _fetchUnread() async {
     final convs = await _chatService.getConversations();
     if (mounted) {
       int total = 0;
-      for (final c in convs) {
-        total += (c['unread_count'] ?? 0) as int;
-      }
+      for (final c in convs) total += (c['unread_count'] ?? 0) as int;
       setState(() => _unreadMessages = total);
     }
   }
@@ -82,42 +82,56 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (response['success'] == true) {
       _clearInlineError();
-      _showSnack('Upload reușit');
+      _showSnack(_tr('upload_success'));
       await _fetchDocuments();
     } else {
-      _setInlineError(response['message'] ?? 'Eroare la upload');
+      _setInlineError(response['message'] ?? _tr('connection_error'));
     }
   }
 
-  // REQ-2: Swipe to delete with confirmation
+  // REQ-10: Fixed — use _deletingIds guard to prevent duplicate calls
   Future<void> _deleteDocument(int id, String name) async {
+    if (_deletingIds.contains(id)) return; // guard duplicate dismissal
+    _deletingIds.add(id);
     _clearInlineError();
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Șterge document', textAlign: TextAlign.center),
-        content: Text('Ești sigur că vrei să ștergi "$name"?',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_tr('delete_document'), textAlign: TextAlign.center),
+        content: Text('${_tr('delete_confirm')} "$name"?',
             textAlign: TextAlign.center),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
-          TextButton(
+          OutlinedButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text(_tr('cancel'))),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Șterge', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: Text(_tr('delete')),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+
+    if (confirmed != true) {
+      _deletingIds.remove(id);
+      return;
+    }
+
     final ok = await _docService.deleteDocument(id);
+    _deletingIds.remove(id);
+
+    if (!mounted) return;
     if (ok) {
-      _showSnack('Document șters');
+      _showSnack(_tr('document_deleted'));
       await _fetchDocuments();
     } else {
-      _setInlineError('Eroare la ștergere. Încearcă din nou.');
+      _setInlineError(_tr('delete_error'));
     }
   }
 
@@ -125,15 +139,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Deconectare'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_tr('logout')),
         content: const Text('Ești sigur că vrei să ieși din cont?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
+              child: Text(_tr('cancel'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Deconectare')),
+              child: Text(_tr('logout'))),
         ],
       ),
     );
@@ -144,11 +159,9 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
-  // REQ-9: Set inline error below content
   void _setInlineError(String msg) {
     if (!mounted) return;
     setState(() => _inlineError = msg);
-    // Auto-clear after 6 seconds
     Future.delayed(const Duration(seconds: 6), () {
       if (mounted) setState(() => _inlineError = null);
     });
@@ -168,43 +181,18 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  void _openGenerateCode() {
-    _clearInlineError();
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => const GenerateAccessCodeScreen()));
-  }
-
-  Future<void> _openRedeemCode() async {
-    _clearInlineError();
-    final result = await Navigator.push<bool>(context,
-        MaterialPageRoute(builder: (_) => const RedeemAccessCodeScreen()));
-    if (result == true) _fetchDocuments();
-  }
-
-  void _openRelationships() {
-    _clearInlineError();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MyCompanionsScreen(user: widget.user),
-      ),
-    );
-  }
-
   Future<void> _openChat() async {
     _clearInlineError();
     final u = widget.user;
     if (u.isPatient) {
       Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            currentUser: u,
-            patientId: u.id,
-            patientName: u.name,
-          ),
-        ),
-      ).then((_) => _fetchUnread());
+          context,
+          MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                    currentUser: u,
+                    patientId: u.id,
+                    patientName: u.name,
+                  ))).then((_) => _fetchUnread());
       return;
     }
     if (u.isCompanion) {
@@ -216,23 +204,20 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       if (convs.length == 1) {
         Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              currentUser: u,
-              patientId: convs[0]['patient_id'],
-              patientName: convs[0]['patient_name'] ?? '',
-            ),
-          ),
-        ).then((_) => _fetchUnread());
+            context,
+            MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                      currentUser: u,
+                      patientId: convs[0]['patient_id'],
+                      patientName: convs[0]['patient_name'] ?? '',
+                    ))).then((_) => _fetchUnread());
       } else {
-        // REQ-11: Centered dialog instead of bottom sheet
         _showPatientPickerDialog(convs);
       }
     }
   }
 
-  // REQ-11: Centered dialog with message count per conversation
+  // REQ-11: Show only unread count (no total messages) in picker
   void _showPatientPickerDialog(List<Map<String, dynamic>> patients) {
     showDialog(
       context: context,
@@ -241,158 +226,116 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 16,
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A5276).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.chat_bubble_outline,
-                    color: Color(0xFF1A5276), size: 28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A5276).withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Selectează conversația',
-                style: TextStyle(
+              child: const Icon(Icons.chat_bubble_outline,
+                  color: Color(0xFF1A5276), size: 28),
+            ),
+            const SizedBox(height: 16),
+            Text(_tr('select_conversation'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1A5276),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Alege cu ce pacient vrei să conversezi',
+                textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(_tr('choose_patient'),
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              // Patient list
-              ...patients.map((p) {
-                final unread = (p['unread_count'] ?? 0) as int;
-                // REQ-11: show total message count
-                final total = (p['total_count'] ?? 0) as int;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
+                textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            ...patients.map((p) {
+              final unread = (p['unread_count'] ?? 0) as int;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ChatScreen(
-                              currentUser: widget.user,
-                              patientId: p['patient_id'],
-                              patientName: p['patient_name'] ?? '',
-                            ),
-                          ),
-                        ).then((_) => _fetchUnread());
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A5276).withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: const Color(0xFF1A5276).withOpacity(0.15),
-                          ),
+                                currentUser: widget.user,
+                                patientId: p['patient_id'],
+                                patientName: p['patient_name'] ?? ''),
+                          )).then((_) => _fetchUnread());
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A5276).withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: const Color(0xFF1A5276).withOpacity(0.15)),
+                      ),
+                      child: Row(children: [
+                        CircleAvatar(
+                          backgroundColor:
+                              const Color(0xFF1A5276).withOpacity(0.12),
+                          child: const Icon(Icons.person,
+                              color: Color(0xFF1A5276), size: 20),
                         ),
-                        child: Row(children: [
-                          CircleAvatar(
-                            backgroundColor:
-                                const Color(0xFF1A5276).withOpacity(0.12),
-                            child: const Icon(Icons.person,
-                                color: Color(0xFF1A5276), size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
+                        const SizedBox(width: 12),
+                        Expanded(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  p['patient_name'] ?? '',
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(p['patient_name'] ?? '',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
                                     color: Color(0xFF2C3E50),
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                // REQ-11: total messages shown
-                                Row(children: [
-                                  Icon(Icons.chat_bubble_outline,
-                                      size: 12, color: Colors.grey.shade400),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    total == 0
-                                        ? 'Niciun mesaj'
-                                        : '$total mesaj${total == 1 ? '' : 'e'}',
+                                  )),
+                              if (p['last_message'] != null)
+                                Text(p['last_message'],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey.shade500),
-                                  ),
-                                  if (p['last_message'] != null) ...[
-                                    Text(' · ',
-                                        style: TextStyle(
-                                            color: Colors.grey.shade400)),
-                                    Expanded(
-                                      child: Text(
-                                        p['last_message'],
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade500),
-                                      ),
-                                    ),
-                                  ],
-                                ]),
-                              ],
+                                        color: Colors.grey.shade500)),
+                            ])),
+                        // REQ-11: Only show unread count, no total
+                        if (unread > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A5276),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          if (unread > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A5276),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$unread',
+                            child: Text('$unread',
                                 style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ] else
-                            const Icon(Icons.chevron_right,
-                                color: Color(0xFF1A5276)),
-                        ]),
-                      ),
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                )),
+                          )
+                        else
+                          const Icon(Icons.chevron_right,
+                              color: Color(0xFF1A5276)),
+                      ]),
                     ),
                   ),
-                );
-              }),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Anulează',
-                    style: TextStyle(color: Colors.grey.shade500)),
-              ),
-            ],
-          ),
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(_tr('cancel'),
+                  style: TextStyle(color: Colors.grey.shade500)),
+            ),
+          ]),
         ),
       ),
     );
@@ -416,51 +359,61 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           if (u.isPatient)
             IconButton(
-              icon: const Icon(Icons.person_add_outlined),
-              tooltip: 'Oferă acces însoțitor',
-              onPressed: _openGenerateCode,
-            ),
+                icon: const Icon(Icons.person_add_outlined),
+                tooltip: _tr('grant_access'),
+                onPressed: () {
+                  _clearInlineError();
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GenerateAccessCodeScreen()));
+                }),
           if (u.isCompanion)
             IconButton(
-              icon: const Icon(Icons.vpn_key_outlined),
-              tooltip: 'Introdu cod pacient',
-              onPressed: _openRedeemCode,
-            ),
-          if (u.isPatient || u.isCompanion)
-            IconButton(
-              icon: const Icon(Icons.manage_accounts_outlined),
-              tooltip: u.isPatient ? 'Însoțitorii mei' : 'Pacienții mei',
-              onPressed: _openRelationships,
-            ),
+                icon: const Icon(Icons.vpn_key_outlined),
+                tooltip: _tr('associate_patient'),
+                onPressed: () async {
+                  _clearInlineError();
+                  final result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RedeemAccessCodeScreen()));
+                  if (result == true) _fetchDocuments();
+                }),
+          // Language switcher
+          IconButton(
+            icon: const Icon(Icons.language),
+            tooltip: 'Language',
+            onPressed: () => showDialog(
+                context: context,
+                builder: (_) => const LanguageSelectorDialog()),
+          ),
+          // Chat with unread badge
           Stack(children: [
             IconButton(
-              icon: const Icon(Icons.chat_bubble_outline),
-              tooltip: 'Mesaje',
-              onPressed: _openChat,
-            ),
+                icon: const Icon(Icons.chat_bubble_outline),
+                tooltip: _tr('messages'),
+                onPressed: _openChat),
             if (_unreadMessages > 0)
               Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: const BoxDecoration(
-                      color: Colors.red, shape: BoxShape.circle),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '$_unreadMessages',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: const BoxDecoration(
+                        color: Colors.red, shape: BoxShape.circle),
+                    alignment: Alignment.center,
+                    child: Text('$_unreadMessages',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700)),
+                  )),
           ]),
           IconButton(
               icon: const Icon(Icons.logout),
-              tooltip: 'Deconectare',
+              tooltip: _tr('logout'),
               onPressed: _logout),
         ],
       ),
@@ -476,14 +429,43 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.upload_file),
-              label: Text(_uploading ? 'Se încarcă...' : 'Adaugă PDF'),
+              label: Text(_uploading ? _tr('uploading') : _tr('add_pdf')),
             )
           : null,
       body: Column(children: [
-        if (u.isPatient) _patientAccessBanner(),
-        if (u.isCompanion) _companionAccessBanner(),
+        // REQ-5: Patient access + management rows
+        if (u.isPatient) ...[
+          _patientAccessBanner(),
+          _managementRow(
+            icon: Icons.manage_accounts_outlined,
+            label: _tr('my_companions'),
+            color: const Color(0xFF1A5276),
+            onTap: () {
+              _clearInlineError();
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => MyCompanionsScreen(user: u)));
+            },
+          ),
+        ],
+        // REQ-6: Companion associate + management rows
+        if (u.isCompanion) ...[
+          _companionAccessBanner(),
+          _managementRow(
+            icon: Icons.key_off_outlined, // broken key icon for differentiation
+            label: _tr('my_patients'),
+            color: Colors.deepOrange,
+            onTap: () {
+              _clearInlineError();
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => MyCompanionsScreen(user: u)));
+            },
+          ),
+        ],
 
-        // REQ-9: Inline error banner shown below banners, above list
         if (_inlineError != null) _inlineErrorBanner(_inlineError!),
 
         Expanded(
@@ -502,7 +484,113 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // REQ-9: Inline error banner widget
+  Widget _patientAccessBanner() => InkWell(
+        onTap: () {
+          _clearInlineError();
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const GenerateAccessCodeScreen()));
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: const Color(0xFF1A5276).withOpacity(0.07),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: const Color(0xFF1A5276).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.person_add_outlined,
+                  color: Color(0xFF1A5276), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(_tr('grant_access'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A5276),
+                          fontSize: 14)),
+                  Text(_tr('gen_code_desc'),
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ])),
+            const Icon(Icons.chevron_right, color: Color(0xFF1A5276)),
+          ]),
+        ),
+      );
+
+  Widget _companionAccessBanner() => InkWell(
+        onTap: () async {
+          _clearInlineError();
+          final result = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const RedeemAccessCodeScreen()));
+          if (result == true) _fetchDocuments();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: Colors.orange.withOpacity(0.07),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.vpn_key_outlined,
+                  color: Colors.orange, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(_tr('associate_patient'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange,
+                          fontSize: 14)),
+                  Text(_tr('enter_code_desc'),
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ])),
+            const Icon(Icons.chevron_right, color: Colors.orange),
+          ]),
+        ),
+      );
+
+  // REQ-5 / REQ-6: Management row with distinct styling
+  Widget _managementRow({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) =>
+      InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.05),
+            border: Border(
+              top: BorderSide(color: color.withOpacity(0.1)),
+              bottom: BorderSide(color: color.withOpacity(0.1)),
+            ),
+          ),
+          child: Row(children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 10),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 13, color: color, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 18),
+          ]),
+        ),
+      );
+
   Widget _inlineErrorBanner(String message) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -512,125 +600,46 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.red.shade300, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.shade100,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(children: [
         Icon(Icons.error_outline, color: Colors.red.shade700, size: 22),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            message,
-            style: TextStyle(
-              color: Colors.red.shade800,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+            child: Text(message,
+                style: TextStyle(
+                  color: Colors.red.shade800,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center)),
         GestureDetector(
-          onTap: _clearInlineError,
-          child: Icon(Icons.close, color: Colors.red.shade400, size: 18),
-        ),
+            onTap: _clearInlineError,
+            child: Icon(Icons.close, color: Colors.red.shade400, size: 18)),
       ]),
     );
   }
 
-  Widget _patientAccessBanner() => InkWell(
-        onTap: _openGenerateCode,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: const Color(0xFF1A5276).withOpacity(0.07),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A5276).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.person_add_outlined,
-                  color: Color(0xFF1A5276), size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Oferă acces însoțitor',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A5276),
-                            fontSize: 14)),
-                    Text('Generează un cod temporar de 6 cifre',
-                        style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ]),
-            ),
-            const Icon(Icons.chevron_right, color: Color(0xFF1A5276)),
-          ]),
-        ),
-      );
-
-  Widget _companionAccessBanner() => InkWell(
-        onTap: _openRedeemCode,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: Colors.orange.withOpacity(0.07),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.vpn_key_outlined,
-                  color: Colors.orange, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Asociază-te cu un pacient',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange,
-                            fontSize: 14)),
-                    Text('Introdu codul primit de la pacient',
-                        style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ]),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.orange),
-          ]),
-        ),
-      );
-
   Widget _emptyState(UserModel u) => ListView(children: [
         SizedBox(
-          height: MediaQuery.of(context).size.height * 0.55,
+          height: MediaQuery.of(context).size.height * 0.5,
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.folder_open_outlined,
                 size: 80, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text('Niciun document',
+            Text(_tr('no_documents'),
                 style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600)),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                )),
             const SizedBox(height: 8),
             Text(
-              u.isCompanion
-                  ? 'Asociază-te cu un pacient pentru a vedea documentele'
-                  : 'Nu ai documente încărcate',
-              style: TextStyle(color: Colors.grey.shade500),
-              textAlign: TextAlign.center,
-            ),
+                u.isCompanion
+                    ? 'Asociază-te cu un pacient pentru a vedea documentele'
+                    : _tr('no_docs_uploaded'),
+                style: TextStyle(color: Colors.grey.shade500),
+                textAlign: TextAlign.center),
           ]),
         ),
       ]);
@@ -690,24 +699,23 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(doc['name'] ?? 'Document',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 3),
-                    Text(doc['created_at'] ?? '',
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(doc['name'] ?? 'Document',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 3),
+                  Text(doc['created_at'] ?? '',
+                      style:
+                          TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                  if (doc['owner'] != null && doc['owner']['name'] != null)
+                    Text('Pacient: ${doc['owner']['name']}',
                         style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 12)),
-                    if (doc['owner'] != null && doc['owner']['name'] != null)
-                      Text('Pacient: ${doc['owner']['name']}',
-                          style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
-                  ]),
-            ),
+                            color: Colors.grey.shade600, fontSize: 12)),
+                ])),
             const Icon(Icons.chevron_right, color: Color(0xFF1A5276), size: 20),
           ]),
         ),
@@ -722,49 +730,29 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
       background: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.red.shade600,
-          borderRadius: BorderRadius.circular(12),
-        ),
+            color: Colors.red.shade600,
+            borderRadius: BorderRadius.circular(12)),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
         child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline, color: Colors.white, size: 28),
-            SizedBox(height: 4),
-            Text('Șterge',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.delete_outline, color: Colors.white, size: 28),
+              SizedBox(height: 4),
+              Text('Șterge',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ]),
       ),
-      confirmDismiss: (_) async {
-        return await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Șterge document', textAlign: TextAlign.center),
-            content: Text(
-              'Ești sigur că vrei să ștergi\n"${doc['name']}"?',
-              textAlign: TextAlign.center,
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Anulează')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                onPressed: () => Navigator.pop(context, true),
-                child:
-                    const Text('Șterge', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        );
+      // REQ-10: confirmDismiss prevents the actual deletion; onDelete handles it
+      confirmDismiss: (_) async =>
+          false, // always return false — handle manually via dialog
+      onUpdate: (details) {
+        // When fully swiped, trigger the delete flow
+        if (details.reached) onDelete();
       },
-      onDismissed: (_) => onDelete(),
       child: card,
     );
   }
