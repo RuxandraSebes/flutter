@@ -1,5 +1,6 @@
 // REQ-10: Messages clearly indicate who is companion, patient, or doctor
 // REQ-9: Centered, longer error messages
+// FIX: Show sender role badge on OWN messages too (aligned right)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -87,7 +88,6 @@ class _ChatScreenState extends State<ChatScreen> {
     if (result['success'] == true) {
       await _loadMessages(silent: true);
     } else {
-      // REQ-9: centered, visible, longer error
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Center(
           child: Text(result['error'] ?? l.get('send_error'),
@@ -109,7 +109,6 @@ class _ChatScreenState extends State<ChatScreen> {
     return msg['sender_id'] == widget.currentUser.id;
   }
 
-  // REQ-10: Determine display role label from sender context
   String _senderRoleLabel(Map<String, dynamic> msg) {
     final l = AppLocalizations.of(context);
     final senderRole = msg['sender_role'] ?? '';
@@ -118,11 +117,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (senderRole == 'doctor_side') {
       return l.get('role_doctor');
     }
-    // patient_side: patient or companion
     if (senderId == widget.patientId) {
       return l.get('role_patient');
     }
-    // REQ-4 & REQ-10: Companion label
     return l.get('role_companion');
   }
 
@@ -169,7 +166,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       body: Column(children: [
-        // REQ-10: Legend strip explaining the 3 participant roles
         _roleLegend(l),
         Expanded(
           child: _loading
@@ -195,31 +191,12 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // // REQ-10: Legend bar at the top showing all 3 roles with color codes
-  // Widget _roleLegend(AppLocalizations l) {
-  //   return Container(
-  //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  //     color: Colors.white,
-  //     child: Row(
-  //       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-  //       children: [
-  //         _legendChip(Icons.medical_services_outlined, l.get('role_doctor'),
-  //             const Color(0xFF1A5276)),
-  //         _legendChip(Icons.personal_injury_outlined, l.get('role_patient'),
-  //             Colors.green.shade700),
-  //         _legendChip(Icons.people_alt_outlined, l.get('role_companion'),
-  //             Colors.orange.shade700),
-  //       ],
-  //     ),
-  //   );
-  // }
   Widget _roleLegend(AppLocalizations l) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       color: Colors.white,
       child: Column(
         children: [
-          // CENTERED TITLE
           Center(
             child: Text(
               l.get('legend'),
@@ -230,9 +207,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 10),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -265,60 +240,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     );
-  }
-
-  Widget _legendCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-
-            // TITLE (legend label)
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-
-            const SizedBox(height: 2),
-
-            // SUBTITLE (explanation)
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 9,
-                color: Colors.grey.shade500,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _legendChip(IconData icon, String label, Color color) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 13, color: color),
-      const SizedBox(width: 4),
-      Text(label,
-          style: TextStyle(
-              fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-    ]);
   }
 
   Widget _inputBar(AppLocalizations l) {
@@ -406,8 +327,6 @@ class _ChatScreenState extends State<ChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> msg;
   final bool isMine;
-
-  // REQ-10: role-based display fields
   final String roleLabel;
   final Color roleColor;
   final IconData roleIcon;
@@ -436,100 +355,99 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment:
             isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // ✅ ROLE BADGE (DOAR pentru ceilalți)
-          if (!isMine)
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: roleColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(roleIcon, size: 12, color: roleColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$roleLabel$displayName',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: roleColor,
-                        ),
-                      ),
-                    ],
-                  ),
+          // ✅ ROLE BADGE — shown for ALL messages, aligned to match bubble side
+          Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
+            child: Align(
+              alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: roleColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ),
-            ),
-
-          // ✅ MESSAGE BUBBLE
-          Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.72,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: bubbleColor,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isMine ? 16 : 4),
-                bottomRight: Radius.circular(isMine ? 4 : 16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment:
-                  isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  msg['message'] ?? '',
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // TIME + STATUS
-                Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(roleIcon, size: 12, color: roleColor),
+                    const SizedBox(width: 4),
                     Text(
-                      time,
+                      '$roleLabel$displayName',
                       style: TextStyle(
-                        color: isMine
-                            ? Colors.white.withOpacity(0.65)
-                            : Colors.grey.shade400,
-                        fontSize: 10,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: roleColor,
                       ),
                     ),
-                    if (isMine) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        msg['read_at'] != null ? Icons.done_all : Icons.done,
-                        size: 12,
-                        color: msg['read_at'] != null
-                            ? Colors.lightBlueAccent
-                            : Colors.white.withOpacity(0.65),
-                      ),
-                    ],
                   ],
                 ),
-              ],
+              ),
+            ),
+          ),
+
+          // ✅ MESSAGE BUBBLE
+          Align(
+            alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.72,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: bubbleColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: Radius.circular(isMine ? 16 : 4),
+                  bottomRight: Radius.circular(isMine ? 4 : 16),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment:
+                    isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    msg['message'] ?? '',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: isMine
+                              ? Colors.white.withOpacity(0.65)
+                              : Colors.grey.shade400,
+                          fontSize: 10,
+                        ),
+                      ),
+                      if (isMine) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          msg['read_at'] != null ? Icons.done_all : Icons.done,
+                          size: 12,
+                          color: msg['read_at'] != null
+                              ? Colors.lightBlueAccent
+                              : Colors.white.withOpacity(0.65),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],

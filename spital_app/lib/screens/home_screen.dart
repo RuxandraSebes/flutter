@@ -1,17 +1,6 @@
-// home_screen.dart — FULL FILE
-// Changes vs original:
-//   • Replaced the language IconButton in AppBar actions with <LanguageDropdown/>
-//   • LanguageDropdown shows the current flag emoji + a small chevron,
-//     tapping opens a popup menu of all 5 languages.
-
-// REQ-1: Open PDF on row click
-// REQ-2: Swipe to delete with confirmation
-// REQ-3: person_add icon for Grant Access
-// REQ-4: "Însoțitor" everywhere
-// REQ-5: Patient can view/remove companions — management row
-// REQ-6: Companion can view/remove patients — management row
-// REQ-9: Improved inline error messages
-// REQ-11: Chat picker as centered dialog with unread count only
+// home_screen.dart — FIXED
+// FIX 1: Unread dot now refreshes when returning from chat (patient)
+// FIX 2: _fetchUnread also called on resume via WidgetsBindingObserver
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -36,7 +25,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _docService = DocumentService();
   final _chatService = ChatService();
   List<Map<String, dynamic>> _documents = [];
@@ -51,8 +40,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fetchDocuments();
     _fetchUnread();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Re-check unread count when app comes back to foreground
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchUnread();
+    }
   }
 
   Future<void> _fetchDocuments() async {
@@ -98,38 +102,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Called AFTER the swipe card has already shown its own confirm dialog.
+  /// No second dialog here — just perform the deletion directly.
   Future<void> _deleteDocument(int id, String name) async {
     if (_deletingIds.contains(id)) return;
     _deletingIds.add(id);
     _clearInlineError();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_tr('delete_document'), textAlign: TextAlign.center),
-        content: Text('${_tr('delete_confirm')} "$name"?',
-            textAlign: TextAlign.center),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          OutlinedButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(_tr('cancel'))),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: Text(_tr('delete')),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) {
-      _deletingIds.remove(id);
-      return;
-    }
 
     final ok = await _docService.deleteDocument(id);
     _deletingIds.remove(id);
@@ -189,20 +167,25 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
+  /// Opens chat. Always refreshes unread count when returning.
   Future<void> _openChat() async {
     _clearInlineError();
     final u = widget.user;
+
     if (u.isPatient) {
-      Navigator.push(
+      await Navigator.push(
           context,
           MaterialPageRoute(
               builder: (_) => ChatScreen(
                     currentUser: u,
                     patientId: u.id,
                     patientName: u.name,
-                  ))).then((_) => _fetchUnread());
+                  )));
+      // ← Always refresh unread when returning from chat
+      _fetchUnread();
       return;
     }
+
     if (u.isCompanion) {
       final convs = await _chatService.getConversations();
       if (!mounted) return;
@@ -211,14 +194,15 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
       if (convs.length == 1) {
-        Navigator.push(
+        await Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (_) => ChatScreen(
                       currentUser: u,
                       patientId: convs[0]['patient_id'],
                       patientName: convs[0]['patient_name'] ?? '',
-                    ))).then((_) => _fetchUnread());
+                    )));
+        _fetchUnread();
       } else {
         _showPatientPickerDialog(convs);
       }
@@ -265,16 +249,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(context);
-                      Navigator.push(
+                      await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ChatScreen(
                                 currentUser: widget.user,
                                 patientId: p['patient_id'],
                                 patientName: p['patient_name'] ?? ''),
-                          )).then((_) => _fetchUnread());
+                          ));
+                      _fetchUnread();
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -386,9 +371,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (_) => const RedeemAccessCodeScreen()));
                   if (result == true) _fetchDocuments();
                 }),
-          // ── Language dropdown: shows current flag, tap to switch ──────────
           const LanguageDropdown(),
-          // ── Chat icon with unread badge ────────────────────────────────────
+          // ── Chat icon with unread badge ─────────────────────────────────
           Stack(children: [
             IconButton(
                 icon: const Icon(Icons.chat_bubble_outline),
