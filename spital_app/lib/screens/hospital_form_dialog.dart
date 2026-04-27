@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/translations.dart';
 
 class HospitalFormDialog extends StatefulWidget {
   final Map<String, dynamic>? existing;
@@ -16,6 +17,8 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
   final _emailCtrl = TextEditingController();
 
   bool get _isEdit => widget.existing != null;
+
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   @override
   void initState() {
@@ -57,7 +60,7 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        _isEdit ? 'Editează spital' : 'Spital nou',
+        _isEdit ? _tr('edit') : _tr('add_hospital'),
         textAlign: TextAlign.center,
       ),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -65,16 +68,17 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _field(_nameCtrl, 'Nume spital *', Icons.local_hospital_outlined),
+            _field(
+                _nameCtrl, _tr('hospital_name'), Icons.local_hospital_outlined),
             const SizedBox(height: 12),
-            _field(_cityCtrl, 'Oraș *', Icons.location_city_outlined),
+            _field(_cityCtrl, _tr('city'), Icons.location_city_outlined),
             const SizedBox(height: 12),
-            _field(_addrCtrl, 'Adresă', Icons.place_outlined),
+            _field(_addrCtrl, _tr('address'), Icons.place_outlined),
             const SizedBox(height: 12),
-            _field(_phoneCtrl, 'Telefon', Icons.phone_outlined,
+            _field(_phoneCtrl, _tr('phone'), Icons.phone_outlined,
                 type: TextInputType.phone),
             const SizedBox(height: 12),
-            _field(_emailCtrl, 'Email', Icons.email_outlined,
+            _field(_emailCtrl, _tr('email'), Icons.email_outlined,
                 type: TextInputType.emailAddress),
             const SizedBox(height: 8),
           ],
@@ -83,7 +87,7 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Anulează'),
+          child: Text(_tr('cancel')),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -94,7 +98,7 @@ class _HospitalFormDialogState extends State<HospitalFormDialog> {
             ),
           ),
           onPressed: _submit,
-          child: Text(_isEdit ? 'Salvează' : 'Creează'),
+          child: Text(_isEdit ? _tr('save') : _tr('create')),
         ),
       ],
     );

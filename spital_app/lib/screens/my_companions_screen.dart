@@ -7,7 +7,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/access_code_service.dart';
-import '../i18n/language_provider.dart';
+import '../i18n/translations.dart';
 
 /// REQ-5: Patients can view and remove their companions.
 /// REQ-6: Companions can view and remove their linked patients.
@@ -26,7 +26,7 @@ class _MyCompanionsScreenState extends State<MyCompanionsScreen> {
 
   bool get _isPatient => widget.user.isPatient;
 
-  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   String get _title => _isPatient ? _tr('my_companions') : _tr('my_patients');
   String get _emptyText =>
@@ -127,6 +127,15 @@ class _MyCompanionsScreenState extends State<MyCompanionsScreen> {
     ));
   }
 
+  String _bannerText() {
+    final n = _people.length;
+    if (_isPatient) {
+      return '$n ${n == 1 ? _tr('companions_count_singular') : _tr('companions_count_plural')}';
+    } else {
+      return '$n ${n == 1 ? _tr('patients_count_singular') : _tr('patients_count_plural')}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,9 +181,7 @@ class _MyCompanionsScreenState extends State<MyCompanionsScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                             child: Text(
-                          _isPatient
-                              ? '${_people.length} însoțitor${_people.length == 1 ? '' : 'i'} asociat${_people.length == 1 ? '' : 'i'}'
-                              : '${_people.length} pacient${_people.length == 1 ? '' : 'i'} asociat${_people.length == 1 ? '' : 'i'}',
+                          _bannerText(),
                           style: TextStyle(
                             color: _isPatient
                                 ? const Color(0xFF1A5276)
@@ -194,6 +201,7 @@ class _MyCompanionsScreenState extends State<MyCompanionsScreen> {
                           return _PersonCard(
                             person: person,
                             isPatient: _isPatient,
+                            cnpLabel: _tr('cnp'),
                             onRemove: () => _remove(person),
                           );
                         },
@@ -230,8 +238,8 @@ class _MyCompanionsScreenState extends State<MyCompanionsScreen> {
           const SizedBox(height: 8),
           Text(
             _isPatient
-                ? 'Generează un cod pentru a adăuga un însoțitor'
-                : 'Introdu un cod de la pacient pentru a te asocia',
+                ? _tr('empty_hint_patient')
+                : _tr('empty_hint_companion'),
             style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
             textAlign: TextAlign.center,
           ),
@@ -242,11 +250,13 @@ class _MyCompanionsScreenState extends State<MyCompanionsScreen> {
 class _PersonCard extends StatelessWidget {
   final Map<String, dynamic> person;
   final bool isPatient;
+  final String cnpLabel;
   final VoidCallback onRemove;
 
   const _PersonCard({
     required this.person,
     required this.isPatient,
+    required this.cnpLabel,
     required this.onRemove,
   });
 
@@ -297,7 +307,7 @@ class _PersonCard extends StatelessWidget {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.badge_outlined, size: 12, color: color),
                     const SizedBox(width: 4),
-                    Text('CNP: $cnp',
+                    Text('$cnpLabel: $cnp',
                         style: TextStyle(
                             fontSize: 11,
                             color: color,

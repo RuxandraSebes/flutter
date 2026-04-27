@@ -9,6 +9,7 @@ import '../models/user_model.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
+import '../i18n/translations.dart';
 import 'login_screen.dart';
 import 'user_form_dialog.dart';
 import 'companion_link_dialog.dart';
@@ -32,6 +33,8 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
   List<Map<String, dynamic>> _documents = [];
   bool _loadingU = true;
   bool _loadingD = true;
+
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   @override
   void initState() {
@@ -118,12 +121,12 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (result == null) return;
     final r = await _admin.createUser(result);
     if (r['success'] == true) {
-      _snackSuccess('Utilizator creat');
+      _snackSuccess(_tr('user_created'));
       _loadUsers();
     } else {
       // Error shown inline within the dialog itself (REQ-9)
       // But if dialog already closed, show here
-      _snackError(r['message'] ?? 'Eroare la creare');
+      _snackError(r['message'] ?? _tr('create_error'));
     }
   }
 
@@ -136,21 +139,24 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     if (result == null) return;
     final r = await _admin.updateUser(u['id'], result);
     if (r['success'] == true) {
-      _snackSuccess('Actualizat');
+      _snackSuccess(_tr('updated'));
       _loadUsers();
     } else {
-      _snackError(r['message'] ?? 'Eroare la actualizare');
+      _snackError(r['message'] ?? _tr('update_error'));
     }
   }
 
   Future<void> _deleteUser(Map<String, dynamic> u) async {
-    final ok = await _confirm('Șterge utilizator', 'Ștergi "${u['name']}"?');
+    final ok = await _confirm(
+      _tr('delete_user'),
+      '${_tr('delete_user_confirm')} "${u['name']}"?',
+    );
     if (!ok) return;
     if (await _admin.deleteUser(u['id'])) {
-      _snackSuccess('Șters');
+      _snackSuccess(_tr('removed'));
       _loadUsers();
     } else {
-      _snackError('Eroare la ștergere. Încearcă din nou.');
+      _snackError(_tr('delete_error'));
     }
   }
 
@@ -158,7 +164,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     final patients = _users.where((u) => u['role'] == 'patient').toList();
     final companions = _users.where((u) => u['role'] == 'companion').toList();
     if (patients.isEmpty || companions.isEmpty) {
-      _snackError('Lipsesc pacienți sau însoțitori în sistem');
+      _snackError(_tr('missing_companions'));
       return;
     }
     final result = await showDialog<Map<String, dynamic>>(
@@ -172,9 +178,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       companionId: result['companion_id'],
     );
     if (r['success'] == true) {
-      _snackSuccess(r['message'] ?? 'Însoțitor legat cu succes');
+      _snackSuccess(r['message'] ?? _tr('linked_success'));
     } else {
-      _snackError(r['message'] ?? 'Eroare la legare');
+      _snackError(r['message'] ?? _tr('remove_link_error'));
     }
   }
 
@@ -188,12 +194,12 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
+              child: Text(_tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child:
-                const Text('Confirmă', style: TextStyle(color: Colors.white)),
+            child: Text(_tr('confirm'),
+                style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -209,8 +215,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Admin Spital',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          Text(_tr('hospital_admin'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
           Text(widget.user.hospitalName,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
@@ -222,10 +229,14 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.people_outline), text: 'Utilizatori'),
-            Tab(icon: Icon(Icons.person_add_outlined), text: 'Însoțitori'),
-            Tab(icon: Icon(Icons.folder_outlined), text: 'Documente'),
+          tabs: [
+            Tab(icon: const Icon(Icons.people_outline), text: _tr('users')),
+            Tab(
+                icon: const Icon(Icons.person_add_outlined),
+                text: _tr('companions_tab')),
+            Tab(
+                icon: const Icon(Icons.folder_outlined),
+                text: _tr('documents_tab')),
           ],
         ),
       ),
@@ -247,7 +258,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           child: ElevatedButton.icon(
             onPressed: _addUser,
             icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Adaugă utilizator'),
+            label: Text(_tr('add_user')),
             style: _btnStyle(),
           ),
         ),
@@ -256,7 +267,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         child: RefreshIndicator(
           onRefresh: _loadUsers,
           child: _users.isEmpty
-              ? const Center(child: Text('Niciun utilizator'))
+              ? Center(child: Text(_tr('no_users')))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _users.length,
@@ -278,29 +289,29 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           child: ElevatedButton.icon(
             onPressed: _linkCompanion,
             icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Leagă însoțitor de pacient'),
+            label: Text(_tr('add_companion_link')),
             style: _btnStyle(),
           ),
         ),
         const SizedBox(height: 20),
-        _sectionHeader('Pacienți (${patients.length})'),
+        _sectionHeader('${_tr('patients_tab')} (${patients.length})'),
         const SizedBox(height: 8),
         // REQ-12: CNP shown prominently
         ...patients.map((p) => _simpleTile(
             icon: Icons.person,
             title: p['name'] ?? '',
             subtitle: p['cnp_pacient'] != null
-                ? 'CNP: ${p['cnp_pacient']} · ${p['email'] ?? ''}'
+                ? '${_tr('cnp')}: ${p['cnp_pacient']} · ${p['email'] ?? ''}'
                 : (p['email'] ?? ''),
             color: const Color(0xFF1A5276))),
         const SizedBox(height: 16),
-        _sectionHeader('Însoțitori (${companions.length})'),
+        _sectionHeader('${_tr('companions_tab')} (${companions.length})'),
         const SizedBox(height: 8),
         ...companions.map((c) => _simpleTile(
             icon: Icons.people,
             title: c['name'] ?? '',
             subtitle: c['cnp_pacient'] != null
-                ? 'CNP: ${c['cnp_pacient']} · ${c['email'] ?? ''}'
+                ? '${_tr('cnp')}: ${c['cnp_pacient']} · ${c['email'] ?? ''}'
                 : (c['email'] ?? ''),
             color: Colors.orange)),
       ]),
@@ -312,7 +323,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     return RefreshIndicator(
       onRefresh: _loadDocs,
       child: _documents.isEmpty
-          ? const Center(child: Text('Niciun document'))
+          ? Center(child: Text(_tr('no_documents')))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _documents.length,
@@ -321,7 +332,8 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
                 final ownerName = doc['owner']?['name'] ?? '';
                 // REQ-12: CNP shown in document list
                 final ownerCnp = doc['owner']?['cnp_pacient'];
-                final cnpLabel = ownerCnp != null ? ' · CNP: $ownerCnp' : '';
+                final cnpLabel =
+                    ownerCnp != null ? ' · ${_tr('cnp')}: $ownerCnp' : '';
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -345,7 +357,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
                         children: [
                           Text(ownerName, style: const TextStyle(fontSize: 12)),
                           if (ownerCnp != null)
-                            Text('CNP: $ownerCnp$cnpLabel',
+                            Text('${_tr('cnp')}: $ownerCnp$cnpLabel',
                                 style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey.shade500,
@@ -395,7 +407,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
               decoration: BoxDecoration(
                   color: const Color(0xFF1A5276).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(6)),
-              child: Text('CNP: ${u['cnp_pacient']}',
+              child: Text('${_tr('cnp')}: ${u['cnp_pacient']}',
                   style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF1A5276),
@@ -457,13 +469,13 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
   String _roleLabel(String? role) {
     switch (role) {
       case 'hospital_admin':
-        return 'Admin Spital';
+        return _tr('role_hospital_admin');
       case 'doctor':
-        return 'Medic';
+        return _tr('role_doctor');
       case 'patient':
-        return 'Pacient';
+        return _tr('role_patient_label');
       case 'companion':
-        return 'Însoțitor';
+        return _tr('role_companion_label');
       default:
         return role ?? '';
     }

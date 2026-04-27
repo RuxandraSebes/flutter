@@ -9,7 +9,8 @@ import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'chat_screen.dart';
 import 'chat_conversations_screen.dart';
-import '../i18n/language_provider.dart'; // Import necesar
+import '../i18n/language_provider.dart';
+import '../i18n/translations.dart';
 
 class DoctorScreen extends StatefulWidget {
   final UserModel user;
@@ -88,8 +89,9 @@ class _DoctorScreenState extends State<DoctorScreen>
   }
 
   Future<void> _uploadForPatient() async {
+    final l = AppLocalizations.of(context);
     if (_selectedPatient == null) {
-      _snack('Selecteaza mai intai un pacient', isError: true);
+      _snack(l.get('select_patient_first'), isError: true);
       return;
     }
     final result = await FilePicker.platform.pickFiles(
@@ -108,10 +110,10 @@ class _DoctorScreenState extends State<DoctorScreen>
     setState(() => _uploading = false);
 
     if (r['success'] == true) {
-      _snack('Document incarcat cu succes');
+      _snack(l.get('upload_success'));
       _loadDocs(patientId: _selectedPatient!['id']);
     } else {
-      _snack(r['message'] ?? 'Eroare la upload', isError: true);
+      _snack(r['message'] ?? l.get('upload_error'), isError: true);
     }
   }
 
@@ -141,6 +143,7 @@ class _DoctorScreenState extends State<DoctorScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
@@ -151,13 +154,13 @@ class _DoctorScreenState extends State<DoctorScreen>
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
           Text(
-              '${widget.user.specialization ?? 'Medic'} · ${widget.user.hospitalName}',
+              '${widget.user.specialization ?? l.get('doctor')} · ${widget.user.hospitalName}',
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
           IconButton(
               icon: const Icon(Icons.logout),
-              tooltip: _tr('logout'),
+              tooltip: l.get('logout'),
               onPressed: _logout)
         ],
         bottom: TabBar(
@@ -166,17 +169,22 @@ class _DoctorScreenState extends State<DoctorScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           tabs: [
-            const Tab(icon: Icon(Icons.people_outline), text: 'Pacienti'),
-            const Tab(icon: Icon(Icons.folder_outlined), text: 'Documente'),
+            Tab(
+                icon: const Icon(Icons.people_outline),
+                text: l.get('patients_tab')),
+            Tab(
+                icon: const Icon(Icons.folder_outlined),
+                text: l.get('documents_tab')),
             Tab(
               child: Stack(alignment: Alignment.topRight, children: [
                 Padding(
-                  padding: EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.only(right: 6),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.chat_bubble_outline),
-                      Text(_tr('messages'), style: TextStyle(fontSize: 12)),
+                      const Icon(Icons.chat_bubble_outline),
+                      Text(l.get('messages'),
+                          style: const TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -216,12 +224,12 @@ class _DoctorScreenState extends State<DoctorScreen>
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.upload_file),
-              label: Text(_uploading ? _tr('uploading') : _tr('add_pdf')),
+              label: Text(_uploading ? l.get('uploading') : l.get('add_pdf')),
             )
           : null,
       body: TabBarView(controller: _tabs, children: [
-        _patientsTab(),
-        _documentsTab(),
+        _patientsTab(l),
+        _documentsTab(l),
         _chatTab(),
       ]),
     );
@@ -229,14 +237,14 @@ class _DoctorScreenState extends State<DoctorScreen>
 
   // ── Patients tab ──────────────────────────────────────────────────────────
 
-  Widget _patientsTab() {
+  Widget _patientsTab(AppLocalizations l) {
     if (_loadingP) return const Center(child: CircularProgressIndicator());
     return Column(children: [
       Padding(
         padding: const EdgeInsets.all(16),
         child: TextField(
           decoration: InputDecoration(
-            hintText: 'Cauta pacient (nume, email, CNP)...',
+            hintText: l.get('search_patient_hint'),
             prefixIcon: const Icon(Icons.search, color: Color(0xFF1A5276)),
             filled: true,
             fillColor: Colors.white,
@@ -252,10 +260,10 @@ class _DoctorScreenState extends State<DoctorScreen>
         child: RefreshIndicator(
           onRefresh: _loadPatients,
           child: _patients.isEmpty
-              ? Center(child: Text(_tr('no_search_results')))
+              ? Center(child: Text(l.get('no_patients')))
               : _filteredPatients.isEmpty
                   ? Center(
-                      child: Text(_tr('no_results_for_query'),
+                      child: Text(l.get('no_results_for_query'),
                           style: TextStyle(color: Colors.grey.shade500)))
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -290,14 +298,13 @@ class _DoctorScreenState extends State<DoctorScreen>
                                 Text(p['email'] ?? '',
                                     style: const TextStyle(fontSize: 12)),
                                 if (p['cnp_pacient'] != null)
-                                  Text(_tr("cnp") + ': ${p['cnp_pacient']}',
+                                  Text('${l.get('cnp')}: ${p['cnp_pacient']}',
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.shade500)),
                                 if (p['hospital'] != null)
                                   Text(
-                                      _tr("hospital") +
-                                          ': ${p['hospital']['name']}',
+                                      '${l.get('hospital')}: ${p['hospital']['name']}',
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.shade500)),
@@ -308,7 +315,7 @@ class _DoctorScreenState extends State<DoctorScreen>
                               IconButton(
                                 icon: const Icon(Icons.chat_bubble_outline,
                                     color: Color(0xFF1A5276), size: 20),
-                                tooltip: 'Mesaj',
+                                tooltip: l.get('message'),
                                 onPressed: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -345,7 +352,7 @@ class _DoctorScreenState extends State<DoctorScreen>
 
   // ── Documents tab ─────────────────────────────────────────────────────────
 
-  Widget _documentsTab() {
+  Widget _documentsTab(AppLocalizations l) {
     return Column(children: [
       if (_selectedPatient != null)
         Container(
@@ -358,11 +365,11 @@ class _DoctorScreenState extends State<DoctorScreen>
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_tr('patient') + ': ${_selectedPatient!['name']}',
+                Text('${l.get('patient_label')}: ${_selectedPatient!['name']}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: Color(0xFF1A5276))),
                 if (_selectedPatient!['cnp_pacient'] != null)
-                  Text(_tr('cnp') + ': ${_selectedPatient!['cnp_pacient']}',
+                  Text('${l.get('cnp')}: ${_selectedPatient!['cnp_pacient']}',
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFF1A5276))),
               ],
@@ -372,8 +379,8 @@ class _DoctorScreenState extends State<DoctorScreen>
                 setState(() => _selectedPatient = null);
                 _loadDocs();
               },
-              child: Text(_tr("all_patients"),
-                  style: TextStyle(color: Color(0xFF1A5276))),
+              child: Text(l.get('all_patients'),
+                  style: const TextStyle(color: Color(0xFF1A5276))),
             ),
           ]),
         )
@@ -384,10 +391,9 @@ class _DoctorScreenState extends State<DoctorScreen>
           child: Row(children: [
             const Icon(Icons.info_outline, color: Colors.grey, size: 18),
             const SizedBox(width: 8),
-            const Expanded(
-                child: Text(
-                    'Selecteaza un pacient din tab-ul Pacienti pentru a filtra documentele',
-                    style: TextStyle(color: Colors.grey, fontSize: 12))),
+            Expanded(
+                child: Text(l.get('select_patient_hint'),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12))),
           ]),
         ),
       Expanded(
@@ -403,8 +409,8 @@ class _DoctorScreenState extends State<DoctorScreen>
                           const SizedBox(height: 12),
                           Text(
                               _selectedPatient != null
-                                  ? 'Niciun document pentru acest pacient'
-                                  : 'Selecteaza un pacient sau apasa refresh',
+                                  ? l.get('no_docs_for_patient')
+                                  : l.get('select_patient_or_refresh'),
                               style: TextStyle(color: Colors.grey.shade600),
                               textAlign: TextAlign.center),
                         ]),
@@ -443,7 +449,8 @@ class _DoctorScreenState extends State<DoctorScreen>
                                 Text(doc['created_at'] ?? '',
                                     style: const TextStyle(fontSize: 11)),
                                 if (doc['owner']?['name'] != null)
-                                  Text('Pacient: ${doc['owner']['name']}',
+                                  Text(
+                                      '${l.get('patient_label')}: ${doc['owner']['name']}',
                                       style: const TextStyle(fontSize: 11)),
                               ],
                             ),
@@ -451,7 +458,7 @@ class _DoctorScreenState extends State<DoctorScreen>
                             trailing: IconButton(
                               icon: const Icon(Icons.open_in_new,
                                   color: Color(0xFF1A5276)),
-                              tooltip: 'Deschide PDF',
+                              tooltip: l.get('open_pdf'),
                               onPressed: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/access_code_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import '../i18n/translations.dart';
 import '../main.dart';
 import 'register_screen.dart';
 import 'login_screen.dart';
@@ -34,6 +35,8 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
   String? _patientName;
   String? _error;
 
+  String _tr(String key) => AppLocalizations.of(context).get(key);
+
   @override
   void initState() {
     super.initState();
@@ -54,8 +57,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
       if (user != null && user.isCompanion) {
         _redeemNow();
       } else if (user != null && !user.isCompanion) {
-        setState(() => _error = 'Doar însoțitorii pot accepta invitații. '
-            'Conectează-te cu un cont de tip Însoțitor.');
+        setState(() => _error = _tr('companion_only_error'));
       }
     }
   }
@@ -76,8 +78,8 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
         _patientName = result['patient']?['name'] as String?;
       });
     } else {
-      setState(() =>
-          _error = result['message'] as String? ?? 'Token invalid sau expirat');
+      setState(
+          () => _error = result['message'] as String? ?? _tr('token_invalid'));
     }
   }
 
@@ -100,7 +102,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Invitație acces dosar'),
+        title: Text(_tr('access_invitation')),
       ),
       body: SafeArea(
         child: Padding(
@@ -132,15 +134,15 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               size: 60, color: Colors.green.shade600),
         ),
         const SizedBox(height: 24),
-        const Text('Asociere reușită!',
-            style: TextStyle(
+        Text(_tr('association_success'),
+            style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF1A5276))),
         const SizedBox(height: 12),
         Text(
-          'Ești acum asociat pacientului${_patientName != null ? '\n$_patientName' : ''}.\n'
-          'Poți vizualiza documentele sale medicale.',
+          '${_tr('invite_success_desc_prefix')}${_patientName != null ? '\n$_patientName' : ''}.\n'
+          '${_tr('invite_success_desc_suffix')}',
           style:
               TextStyle(fontSize: 15, color: Colors.grey.shade700, height: 1.5),
           textAlign: TextAlign.center,
@@ -157,8 +159,9 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
             ),
-            child: const Text('Mergi la documente',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            child: Text(_tr('go_to_documents'),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ),
       ]),
@@ -182,14 +185,14 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               size: 40, color: Color(0xFF1A5276)),
         ),
         const SizedBox(height: 20),
-        const Text('Invitație primită',
-            style: TextStyle(
+        Text(_tr('invite_received'),
+            style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF1A5276))),
         const SizedBox(height: 12),
         Text(
-          'Un pacient ți-a trimis o invitație pentru a-i vizualiza dosarul medical.',
+          _tr('invite_patient_desc'),
           style:
               TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
           textAlign: TextAlign.center,
@@ -225,7 +228,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
                         strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.link),
             label: Text(
-              _redeeming ? 'Se verifică...' : 'Acceptă invitația',
+              _redeeming ? _tr('verifying') : _tr('accept_invite'),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: ElevatedButton.styleFrom(
@@ -257,15 +260,14 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
           child: Column(children: [
             const Icon(Icons.mail_outline, size: 40, color: Color(0xFF1A5276)),
             const SizedBox(height: 12),
-            const Text('Invitație de acces dosar medical',
-                style: TextStyle(
+            Text(_tr('invite_medical_access'),
+                style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF1A5276))),
             const SizedBox(height: 8),
             Text(
-              'Conectează-te sau creează un cont de tip Însoțitor '
-              'pentru a accepta această invitație.',
+              _tr('invite_auth_desc'),
               style: TextStyle(
                   fontSize: 13, color: Colors.grey.shade600, height: 1.4),
               textAlign: TextAlign.center,
@@ -288,8 +290,9 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               }
             },
             icon: const Icon(Icons.login),
-            label: const Text('Am deja cont — Loghează-mă',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            label: Text(_tr('already_have_account_login'),
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A5276),
               foregroundColor: Colors.white,
@@ -319,8 +322,9 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
               }
             },
             icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Cont nou de Însoțitor',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            label: Text(_tr('invite_new_companion_account'),
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF1A5276),
               side: const BorderSide(color: Color(0xFF1A5276), width: 1.5),
@@ -340,8 +344,7 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
             Icon(Icons.timer_outlined, color: Colors.amber.shade700, size: 18),
             const SizedBox(width: 8),
             Expanded(
-                child: Text(
-                    'Invitația este valabilă 24 de ore de la trimitere.',
+                child: Text(_tr('invite_valid_notice'),
                     style:
                         TextStyle(color: Colors.amber.shade800, fontSize: 12))),
           ]),

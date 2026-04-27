@@ -62,12 +62,10 @@ class AuthController extends Controller
         $user = User::where('email', $fields['email'])->first();
 
         if (! $user || ! Hash::check($fields['password'], $user->password)) {
-            return response(['message' => 'Date incorecte'], 401);
-        }
+return response(['message' => 'error_invalid_credentials'], 401);        }
 
         if (! $user->is_active) {
-            return response(['message' => 'Contul este dezactivat. Contactati administratorul.'], 403);
-        }
+return response(['message' => 'error_account_disabled'], 403);        }
 
         $token = $user->createToken('spitaltoken')->plainTextToken;
 
@@ -81,8 +79,7 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response(['message' => 'Delogat cu succes'], 200);
-    }
+return response(['message' => 'logout_success'], 200);    }
 
     public function me(Request $request)
     {

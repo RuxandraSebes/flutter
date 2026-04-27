@@ -2,6 +2,7 @@
 // REQ-14: Search bar + scroll functionality for patient/companion lists
 
 import 'package:flutter/material.dart';
+import '../i18n/translations.dart';
 
 class CompanionLinkDialog extends StatefulWidget {
   final List<Map<String, dynamic>> patients;
@@ -48,38 +49,44 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
     if (_companionQuery.isEmpty) return widget.companions;
     final q = _companionQuery.toLowerCase();
     return widget.companions.where((c) {
-      return (c['name'] ?? '').toLowerCase().contains(q) ||
-          (c['email'] ?? '').toLowerCase().contains(q);
+      final name = (c['name'] ?? '').toLowerCase();
+      final email = (c['email'] ?? '').toLowerCase();
+      final cnp = (c['cnp_pacient'] ?? '').toString();
+
+      return name.contains(q) || email.contains(q) || cnp.contains(q);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title:
-          const Text('Leagă însoțitor de pacient', textAlign: TextAlign.center),
+      title: Text(l.get('link_companion_patient'), textAlign: TextAlign.center),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             // ── Patient section ──────────────────────────────────────────────
-            _sectionLabel('Selectează pacientul',
+            _sectionLabel(l.get('select_patient'),
                 Icons.personal_injury_outlined, const Color(0xFF1A5276)),
             const SizedBox(height: 8),
             // REQ-14: Search bar for patients
-            _searchField(_patientSearchCtrl, 'Caută pacient (nume, CNP)...',
-                (v) => setState(() => _patientQuery = v)),
+            _searchField(
+              _patientSearchCtrl,
+              l.get('search_by_name_or_cnp'),
+              (v) => setState(() => _patientQuery = v),
+            ),
             const SizedBox(height: 8),
             // REQ-14: Scrollable list of patients
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 160),
               child: _filteredPatients.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('Niciun rezultat',
-                          style: TextStyle(color: Colors.grey),
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(l.get('no_result'),
+                          style: const TextStyle(color: Colors.grey),
                           textAlign: TextAlign.center),
                     )
                   : ListView.builder(
@@ -129,7 +136,7 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
                                       // REQ-12: CNP shown in selection
                                       if (p['cnp_pacient'] != null)
                                         Text(
-                                          'CNP: ${p['cnp_pacient']}',
+                                          '${l.get('cnp')}: ${p['cnp_pacient']}',
                                           style: TextStyle(
                                               fontSize: 11,
                                               color: Colors.grey.shade500),
@@ -146,21 +153,24 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
             const SizedBox(height: 16),
 
             // ── Companion section ────────────────────────────────────────────
-            _sectionLabel('Selectează însoțitorul', Icons.people_alt_outlined,
+            _sectionLabel(l.get('select_companion'), Icons.people_alt_outlined,
                 Colors.orange),
             const SizedBox(height: 8),
             // REQ-14: Search bar for companions
-            _searchField(_companionSearchCtrl, 'Caută însoțitor (nume)...',
-                (v) => setState(() => _companionQuery = v)),
+            _searchField(
+              _patientSearchCtrl,
+              l.get('search_by_name_or_cnp'),
+              (v) => setState(() => _patientQuery = v),
+            ),
             const SizedBox(height: 8),
             // REQ-14: Scrollable list of companions
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 160),
               child: _filteredCompanions.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('Niciun rezultat',
-                          style: TextStyle(color: Colors.grey),
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(l.get('no_result'),
+                          style: const TextStyle(color: Colors.grey),
                           textAlign: TextAlign.center),
                     )
                   : ListView.builder(
@@ -198,18 +208,23 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(c['name'] ?? '',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13)),
-                                      Text(c['email'] ?? '',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey.shade500)),
-                                    ]),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(c['name'] ?? '',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13)),
+
+                                    // REQ-12: CNP for companion too
+                                    if (c['cnp_pacient'] != null)
+                                      Text(
+                                        '${l.get('cnp')}: ${c['cnp_pacient']}',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade500),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ]),
                           ),
@@ -225,7 +240,7 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Anulează')),
+            child: Text(l.get('cancel'))),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A5276),
@@ -240,7 +255,7 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
                     // relationship field removed per REQ-13
                   })
               : null,
-          child: const Text('Leagă'),
+          child: Text(l.get('link')),
         ),
       ],
     );

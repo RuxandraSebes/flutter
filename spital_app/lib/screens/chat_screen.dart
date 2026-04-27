@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../models/user_model.dart';
+import '../i18n/translations.dart';
 
 class ChatScreen extends StatefulWidget {
   final UserModel currentUser;
@@ -72,6 +73,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _send() async {
+    final l = AppLocalizations.of(context);
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
 
@@ -88,7 +90,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // REQ-9: centered, visible, longer error
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Center(
-          child: Text(result['error'] ?? 'Eroare la trimitere',
+          child: Text(result['error'] ?? l.get('send_error'),
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center),
@@ -109,48 +111,40 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // REQ-10: Determine display role label from sender context
   String _senderRoleLabel(Map<String, dynamic> msg) {
+    final l = AppLocalizations.of(context);
     final senderRole = msg['sender_role'] ?? '';
     final senderId = msg['sender_id'];
 
     if (senderRole == 'doctor_side') {
-      return 'Medic';
+      return l.get('role_doctor');
     }
     // patient_side: patient or companion
     if (senderId == widget.patientId) {
-      return 'Pacient';
+      return l.get('role_patient');
     }
     // REQ-4 & REQ-10: Companion label
-    return 'Însoțitor';
+    return l.get('role_companion');
   }
 
   Color _senderRoleColor(Map<String, dynamic> msg) {
+    final l = AppLocalizations.of(context);
     final label = _senderRoleLabel(msg);
-    switch (label) {
-      case 'Medic':
-        return const Color(0xFF1A5276);
-      case 'Pacient':
-        return Colors.green.shade700;
-      case 'Însoțitor':
-      default:
-        return Colors.orange.shade700;
-    }
+    if (label == l.get('role_doctor')) return const Color(0xFF1A5276);
+    if (label == l.get('role_patient')) return Colors.green.shade700;
+    return Colors.orange.shade700;
   }
 
   IconData _senderRoleIcon(Map<String, dynamic> msg) {
+    final l = AppLocalizations.of(context);
     final label = _senderRoleLabel(msg);
-    switch (label) {
-      case 'Medic':
-        return Icons.medical_services_outlined;
-      case 'Pacient':
-        return Icons.personal_injury_outlined;
-      case 'Însoțitor':
-      default:
-        return Icons.people_alt_outlined;
-    }
+    if (label == l.get('role_doctor')) return Icons.medical_services_outlined;
+    if (label == l.get('role_patient')) return Icons.personal_injury_outlined;
+    return Icons.people_alt_outlined;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
@@ -161,28 +155,28 @@ class _ChatScreenState extends State<ChatScreen> {
             widget.patientName,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
-          const Text(
-            'Conversație medicală',
-            style: TextStyle(fontSize: 11, color: Colors.white70),
+          Text(
+            l.get('medical_conversation'),
+            style: const TextStyle(fontSize: 11, color: Colors.white70),
           ),
         ]),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reîncarcă',
+            tooltip: l.get('refresh'),
             onPressed: () => _loadMessages(),
           ),
         ],
       ),
       body: Column(children: [
         // REQ-10: Legend strip explaining the 3 participant roles
-        _roleLegend(),
+        _roleLegend(l),
         Expanded(
           child: _loading
               ? const Center(
                   child: CircularProgressIndicator(color: Color(0xFF1A5276)))
               : _messages.isEmpty
-                  ? _emptyState()
+                  ? _emptyState(l)
                   : ListView.builder(
                       controller: _scrollCtrl,
                       padding: const EdgeInsets.all(16),
@@ -197,26 +191,123 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
         ),
-        _inputBar(),
+        _inputBar(l),
       ]),
     );
   }
 
-  // REQ-10: Legend bar at the top showing all 3 roles with color codes
-  Widget _roleLegend() {
+  // // REQ-10: Legend bar at the top showing all 3 roles with color codes
+  // Widget _roleLegend(AppLocalizations l) {
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  //     color: Colors.white,
+  //     child: Row(
+  //       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  //       children: [
+  //         _legendChip(Icons.medical_services_outlined, l.get('role_doctor'),
+  //             const Color(0xFF1A5276)),
+  //         _legendChip(Icons.personal_injury_outlined, l.get('role_patient'),
+  //             Colors.green.shade700),
+  //         _legendChip(Icons.people_alt_outlined, l.get('role_companion'),
+  //             Colors.orange.shade700),
+  //       ],
+  //     ),
+  //   );
+  // }
+  Widget _roleLegend(AppLocalizations l) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       color: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Column(
         children: [
-          _legendChip(Icons.medical_services_outlined, 'Medic',
-              const Color(0xFF1A5276)),
-          _legendChip(
-              Icons.personal_injury_outlined, 'Pacient', Colors.green.shade700),
-          _legendChip(
-              Icons.people_alt_outlined, 'Însoțitor', Colors.orange.shade700),
+          // CENTERED TITLE
+          Center(
+            child: Text(
+              l.get('legend'),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2C3E50),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _legendItem(Icons.medical_services_outlined, l.get('role_doctor'),
+                  const Color(0xFF1A5276)),
+              _legendItem(Icons.personal_injury_outlined, l.get('role_patient'),
+                  Colors.green),
+              _legendItem(Icons.people_alt_outlined, l.get('role_companion'),
+                  Colors.orange),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _legendItem(IconData icon, String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _legendCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 4),
+
+            // TITLE (legend label)
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+
+            const SizedBox(height: 2),
+
+            // SUBTITLE (explanation)
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 9,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -231,7 +322,7 @@ class _ChatScreenState extends State<ChatScreen> {
     ]);
   }
 
-  Widget _inputBar() {
+  Widget _inputBar(AppLocalizations l) {
     return Container(
       padding: EdgeInsets.only(
         left: 12,
@@ -257,7 +348,7 @@ class _ChatScreenState extends State<ChatScreen> {
             keyboardType: TextInputType.multiline,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              hintText: 'Scrie un mesaj...',
+              hintText: l.get('write_message'),
               hintStyle: TextStyle(color: Colors.grey.shade400),
               filled: true,
               fillColor: Colors.grey.shade100,
@@ -298,15 +389,15 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState(AppLocalizations l) {
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
         const SizedBox(height: 12),
-        Text('Niciun mesaj încă.',
+        Text(l.get('no_messages_yet'),
             style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
         const SizedBox(height: 6),
-        Text('Fii primul care trimite un mesaj.',
+        Text(l.get('be_first'),
             style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
       ]),
     );

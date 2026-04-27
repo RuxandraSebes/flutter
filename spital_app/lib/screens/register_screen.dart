@@ -91,10 +91,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  String _tr(String key) {
-    final provider = LanguageProvider.of(context);
-    return provider?.tr(key) ?? key;
-  }
+  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   Future<void> _loadHospitals() async {
     final list = await _authService.getHospitals();
@@ -184,8 +181,81 @@ class _RegisterScreenState extends State<RegisterScreen> {
             icon: const Icon(Icons.language),
             onPressed: () => showDialog(
               context: context,
-              builder: (_) =>
-                  const LanguageSelectorDialog(), // Folosește dialogul din language_provider.dart
+              builder: (ctx) => SimpleDialog(
+                title: Text(_tr('language')),
+                children: [
+                  SimpleDialogOption(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      LanguageProvider.of(context)
+                          ?.setLocale(const Locale('ro'));
+                    },
+                    child: const Row(
+                      children: [
+                        Text('🇷🇴', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 15),
+                        Text('Română', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                  SimpleDialogOption(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      LanguageProvider.of(context)
+                          ?.setLocale(const Locale('en'));
+                    },
+                    child: const Row(
+                      children: [
+                        Text('🇬🇧', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 15),
+                        Text('English', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                  SimpleDialogOption(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      LanguageProvider.of(context)
+                          ?.setLocale(const Locale('hu'));
+                    },
+                    child: const Row(
+                      children: [
+                        Text('🇭🇺', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 15),
+                        Text('Magyar', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                  SimpleDialogOption(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      LanguageProvider.of(context)
+                          ?.setLocale(const Locale('uk'));
+                    },
+                    child: const Row(
+                      children: [
+                        Text('🇺🇦', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 15),
+                        Text('Українська', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                  SimpleDialogOption(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      LanguageProvider.of(context)
+                          ?.setLocale(const Locale('sk'));
+                    },
+                    child: const Row(
+                      children: [
+                        Text('🇸🇰', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 15),
+                        Text('Slovenčina', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -221,8 +291,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 8),
               Text(
                 _selectedRole == 'patient'
-                    ? 'Accesează și gestionează propriile documente medicale'
-                    : 'Vizualizează documentele pacientului la care ești asociat',
+                    ? _tr('patient_desc')
+                    : _tr('companion_desc'),
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
               const SizedBox(height: 20),
@@ -308,15 +378,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.orange.withOpacity(0.3)),
                   ),
-                  child: const Row(children: [
-                    Icon(Icons.info_outline, color: Colors.orange, size: 18),
-                    SizedBox(width: 10),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline,
+                        color: Colors.orange, size: 18),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'După înregistrare, cere pacientului un cod de 6 cifre '
-                        'sau un token de invitație pentru a te asocia dosarului său.',
-                        style:
-                            TextStyle(fontSize: 13, color: Colors.deepOrange),
+                        _tr('companion_info_note'),
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.deepOrange),
                       ),
                     ),
                   ]),
@@ -428,7 +498,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(width: 8),
               Text(
                 _cnpValid
-                    ? '✓ Valid'
+                    ? _tr('valid_status')
                     : _cnpError ?? '${_cnpController.text.trim().length}/13',
                 style: TextStyle(
                   fontSize: 11,
@@ -467,7 +537,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(width: 8),
           Expanded(
               child: Text(
-            'Nu s-au putut încărca spitalele. Poți selecta ulterior din profil.',
+            _tr('hospital_load_error'),
             style: TextStyle(color: Colors.orange.shade800, fontSize: 12),
           )),
         ]),

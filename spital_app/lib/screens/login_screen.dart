@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../i18n/language_provider.dart';
 import '../main.dart';
 import 'register_screen.dart';
 
@@ -18,6 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
   bool _loading = false;
   bool _obscure = true;
+
+  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   @override
   void dispose() {
@@ -79,8 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 Text(
                   _tr('portal_upu'),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.grey.shade600),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 40),
                 Card(

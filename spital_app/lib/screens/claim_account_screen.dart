@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import '../i18n/translations.dart';
 
 /// Shown when a patient's account was auto-created from a Hipocrate PDF
 /// (the email ends with @hipocrate.internal) and they log in for the first time.
@@ -45,15 +46,16 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
 
     if (name.isEmpty) {
-      _snack('Introdu numele tău', isError: true);
+      _snack(l.get('enter_name_prompt'), isError: true);
       return;
     }
     if (email.isEmpty || !email.contains('@')) {
-      _snack('Introdu o adresă de email validă', isError: true);
+      _snack(l.get('enter_valid_email'), isError: true);
       return;
     }
 
@@ -64,12 +66,12 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
     setState(() => _loading = false);
 
     if (result['success'] == true) {
-      _snack('Profil actualizat cu succes');
+      _snack(l.get('profile_updated'));
       // Small delay then pop so parent can refresh
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) Navigator.pop(context, true);
     } else {
-      _snack(result['message'] ?? 'Eroare la actualizare', isError: true);
+      _snack(result['message'] ?? l.get('update_error'), isError: true);
     }
   }
 
@@ -82,12 +84,13 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Completează profilul'),
+        title: Text(l.get('complete_profile')),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -104,9 +107,9 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
                 const Icon(Icons.info_outline,
                     color: Color(0xFF1A5276), size: 36),
                 const SizedBox(height: 12),
-                const Text(
-                  'Documentul tău medical a fost primit',
-                  style: TextStyle(
+                Text(
+                  l.get('doc_received'),
+                  style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1A5276)),
@@ -114,8 +117,7 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Contul tău a fost creat automat când documentul a fost preluat din Hipocrate. '
-                  'Te rugăm să completezi datele de contact.',
+                  l.get('claim_account_desc'),
                   style: TextStyle(
                       fontSize: 13, color: Colors.grey.shade700, height: 1.5),
                   textAlign: TextAlign.center,
@@ -129,7 +131,7 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
                         color: const Color(0xFF1A5276).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20)),
                     child: Text(
-                      'CNP identificat: ${widget.user.cnpPacient}',
+                      '${l.get('cnp_identified')}: ${widget.user.cnpPacient}',
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -147,9 +149,11 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(children: [
-                  _field(_nameCtrl, 'Nume complet *', Icons.person_outline),
+                  _field(_nameCtrl, l.get('name_full_required'),
+                      Icons.person_outline),
                   const SizedBox(height: 16),
-                  _field(_emailCtrl, 'Email de contact *', Icons.email_outlined,
+                  _field(
+                      _emailCtrl, l.get('contact_email'), Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -169,8 +173,8 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
-                          : const Text('Salvează și continuă',
-                              style: TextStyle(
+                          : Text(l.get('save_continue'),
+                              style: const TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.w600)),
                     ),
                   ),

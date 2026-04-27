@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/access_code_service.dart';
+import '../i18n/translations.dart';
 
 class RedeemAccessCodeScreen extends StatefulWidget {
   const RedeemAccessCodeScreen({super.key});
@@ -50,9 +51,10 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
   // ── Numeric code redeem ─────────────────────────────────────────────────────
 
   Future<void> _redeemCode() async {
+    final l10n = AppLocalizations.of(context);
     final code = _codeCtrl.text.trim();
     if (code.isEmpty || code.length != 6) {
-      setState(() => _codeError = 'Introdu un cod de 6 cifre.');
+      setState(() => _codeError = l10n.get('enter_6digit'));
       return;
     }
 
@@ -77,16 +79,17 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
       if (mounted) Navigator.pop(context, true);
     } else {
       setState(
-          () => _codeError = result['message'] ?? 'Cod invalid sau expirat.');
+          () => _codeError = result['message'] ?? l10n.get('code_invalid'));
     }
   }
 
   // ── Email token redeem ──────────────────────────────────────────────────────
 
   Future<void> _redeemToken() async {
+    final l10n = AppLocalizations.of(context);
     final token = _tokenCtrl.text.trim();
     if (token.isEmpty) {
-      setState(() => _tokenError = 'Introdu tokenul de invitație.');
+      setState(() => _tokenError = l10n.get('enter_token'));
       return;
     }
 
@@ -109,39 +112,34 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.pop(context, true);
     } else {
-      setState(() =>
-          _tokenError = result['message'] ?? 'Token invalid sau expirat.');
+      setState(
+          () => _tokenError = result['message'] ?? l10n.get('token_invalid'));
     }
-  }
-
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: Colors.green.shade700,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Asociază-te cu un pacient'),
+        title: Text(l10n.get('associate_patient')),
         bottom: TabBar(
           controller: _tabs,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.dialpad), text: 'Cod numeric'),
-            Tab(icon: Icon(Icons.token_outlined), text: 'Token invitație'),
+          tabs: [
+            Tab(
+                icon: const Icon(Icons.dialpad),
+                text: l10n.get('numeric_code')),
+            Tab(
+                icon: const Icon(Icons.token_outlined),
+                text: l10n.get('invite_token_tab')),
           ],
         ),
       ),
@@ -155,11 +153,15 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
   // ── Tab 1: Numeric code ─────────────────────────────────────────────────────
 
   Widget _codeTab() {
+    final l10n = AppLocalizations.of(context);
+
     if (_codeSuccess) {
       return _successView(
-          'Asociere reușită!',
-          'Ești acum asociat pacientului${_codePatientName != null ? '\n$_codePatientName' : ''}.\n'
-              'Poți vizualiza documentele sale medicale.');
+        l10n.get('association_success'),
+        '${l10n.get('invite_success_desc_prefix')}'
+        '${_codePatientName != null ? '\n$_codePatientName' : ''}.\n'
+        '${l10n.get('invite_success_desc_suffix')}',
+      );
     }
 
     return SingleChildScrollView(
@@ -168,12 +170,12 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _howItWorksCard(
-            steps: const [
-              ('1', 'Cere pacientului să genereze un cod în aplicația sa'),
-              ('2', 'Introdu cele 6 cifre mai jos'),
-              ('3', 'Apasă „Activează codul"'),
+            steps: [
+              ('1', l10n.get('redeem_code_step_1')),
+              ('2', l10n.get('redeem_code_step_2')),
+              ('3', l10n.get('redeem_code_step_3')),
             ],
-            note: 'Codul expiră după 5 minute.',
+            note: l10n.get('code_valid_5min_note'),
           ),
           const SizedBox(height: 32),
 
@@ -185,8 +187,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(children: [
-                const Text('Cod de acces (6 cifre)',
-                    style: TextStyle(
+                Text(l10n.get('access_code_6digits'),
+                    style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1A5276))),
@@ -241,7 +243,9 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.link),
                     label: Text(
-                      _redeemingCode ? 'Se verifică...' : 'Activează codul',
+                      _redeemingCode
+                          ? l10n.get('verifying')
+                          : l10n.get('activate_code'),
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600),
                     ),
@@ -271,11 +275,15 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
   // ── Tab 2: Email token ──────────────────────────────────────────────────────
 
   Widget _tokenTab() {
+    final l10n = AppLocalizations.of(context);
+
     if (_tokenSuccess) {
       return _successView(
-          'Invitație acceptată!',
-          'Ești acum asociat pacientului${_tokenPatientName != null ? '\n$_tokenPatientName' : ''}.\n'
-              'Poți vizualiza documentele sale medicale.');
+        l10n.get('invite_accepted'),
+        '${l10n.get('invite_success_desc_prefix')}'
+        '${_tokenPatientName != null ? '\n$_tokenPatientName' : ''}.\n'
+        '${l10n.get('invite_success_desc_suffix')}',
+      );
     }
 
     return SingleChildScrollView(
@@ -284,12 +292,12 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _howItWorksCard(
-            steps: const [
-              ('1', 'Pacientul ți-a trimis un token prin email'),
-              ('2', 'Copiază tokenul din email'),
-              ('3', 'Inserează-l mai jos și apasă „Acceptă invitația"'),
+            steps: [
+              ('1', l10n.get('redeem_token_step_1')),
+              ('2', l10n.get('redeem_token_step_2')),
+              ('3', l10n.get('redeem_token_step_3')),
             ],
-            note: 'Tokenul expiră după 24 de ore.',
+            note: l10n.get('token_valid_24h'),
           ),
           const SizedBox(height: 28),
           Card(
@@ -301,8 +309,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Token de invitație',
-                      style: TextStyle(
+                  Text(l10n.get('invite_token_label'),
+                      style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1A5276))),
@@ -319,7 +327,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
                         fontSize: 12,
                         color: Color(0xFF1A5276)),
                     decoration: InputDecoration(
-                      hintText: 'Inserează tokenul primit prin email...',
+                      hintText: l10n.get('insert_token'),
                       prefixIcon: const Icon(Icons.token_outlined,
                           color: Color(0xFF1A5276)),
                       border: OutlineInputBorder(
@@ -351,8 +359,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
                           : const Icon(Icons.check_circle_outline),
                       label: Text(
                         _redeemingToken
-                            ? 'Se verifică...'
-                            : 'Acceptă invitația',
+                            ? l10n.get('verifying')
+                            : l10n.get('accept_invite'),
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600),
                       ),
@@ -383,6 +391,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
   // ── Shared widgets ──────────────────────────────────────────────────────────
 
   Widget _successView(String title, String body) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -409,7 +418,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
           const SizedBox(height: 24),
           const CircularProgressIndicator(color: Color(0xFF1A5276)),
           const SizedBox(height: 12),
-          Text('Redirecționare...',
+          Text(l10n.get('redirecting'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
         ]),
       ),
@@ -453,6 +462,7 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
     required List<(String, String)> steps,
     required String note,
   }) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -462,8 +472,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
           const Icon(Icons.vpn_key_outlined,
               size: 40, color: Color(0xFF1A5276)),
           const SizedBox(height: 10),
-          const Text('Cum funcționează?',
-              style: TextStyle(
+          Text(l10n.get('how_it_works'),
+              style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1A5276))),

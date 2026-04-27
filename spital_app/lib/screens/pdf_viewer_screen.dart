@@ -7,6 +7,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../services/auth_service.dart';
+import '../i18n/translations.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String url;
@@ -24,6 +25,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   String? _error;
   int _pages = 0;
   int _currentPage = 0;
+
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   @override
   void initState() {
@@ -46,7 +49,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       if (response.statusCode != 200) {
         if (mounted) {
           setState(() {
-            _error = 'Nu s-a putut descărca (${response.statusCode})';
+            _error = '${_tr('pdf_download_error')} (${response.statusCode})';
             _loading = false;
           });
         }
@@ -70,14 +73,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     } on TimeoutException {
       if (mounted) {
         setState(() {
-          _error = 'Timeout: descărcarea a durat prea mult';
+          _error = _tr('pdf_timeout_error');
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Eroare: $e';
+          _error = '${_tr('pdf_generic_error')}: $e';
           _loading = false;
         });
       }
@@ -106,13 +109,13 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         ],
       ),
       body: _loading
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF1A5276)),
-                  SizedBox(height: 16),
-                  Text('Se descarcă documentul...'),
+                  const CircularProgressIndicator(color: Color(0xFF1A5276)),
+                  const SizedBox(height: 16),
+                  Text(_tr('downloading')),
                 ],
               ),
             )
@@ -135,7 +138,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                           _downloadPdf();
                         },
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Reîncearcă'),
+                        label: Text(_tr('retry')),
                       ),
                     ],
                   ),

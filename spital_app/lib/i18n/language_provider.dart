@@ -14,6 +14,14 @@ class LanguageProvider extends StatefulWidget {
   static _LanguageProviderState? of(BuildContext context) {
     return context.findAncestorStateOfType<_LanguageProviderState>();
   }
+
+  // ADD THIS METHOD
+  static Locale localeOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<_LocaleInherited>()
+            ?.locale ??
+        const Locale('ro');
+  }
 }
 
 class _LanguageProviderState extends State<LanguageProvider> {

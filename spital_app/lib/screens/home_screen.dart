@@ -13,6 +13,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import '../services/chat_service.dart';
+import '../i18n/translations.dart';
 import '../i18n/language_provider.dart';
 import 'login_screen.dart';
 import 'pdf_viewer_screen.dart';
@@ -40,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // REQ-10: Track which doc IDs are being deleted to avoid duplicate dismissal
   final Set<int> _deletingIds = {};
 
-  String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   @override
   void initState() {
@@ -142,8 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_tr('logout')),
-        content: const Text('Ești sigur că vrei să ieși din cont?'),
+        title: Text(_tr('logout_confirm_title')),
+        content: Text(_tr('logout_confirm')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -201,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final convs = await _chatService.getConversations();
       if (!mounted) return;
       if (convs.isEmpty) {
-        _setInlineError('Nu ești asociat niciunui pacient');
+        _setInlineError(_tr('not_associated_any_patient'));
         return;
       }
       if (convs.length == 1) {
@@ -383,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // REQ-13: Language switcher using the specialized provider dialog
           IconButton(
             icon: const Icon(Icons.language),
-            tooltip: 'Language',
+            tooltip: _tr('language'),
             onPressed: () => showDialog(
               context: context,
               builder: (_) => const LanguageSelectorDialog(),
@@ -631,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text(
                 u.isCompanion
-                    ? 'Asociază-te cu un pacient pentru a vedea documentele'
+                    ? _tr('associate_to_see_docs')
                     : _tr('no_docs_uploaded'),
                 style: TextStyle(color: Colors.grey.shade500),
                 textAlign: TextAlign.center),
@@ -647,6 +648,11 @@ class _HomeScreenState extends State<HomeScreen> {
           return _SwipeToDeleteDocCard(
             doc: doc,
             canDelete: u.isPatient,
+            patientPrefix: _tr('patient_prefix'),
+            deleteTitle: _tr('delete_document_title'),
+            deleteConfirm: _tr('delete_confirm'),
+            cancelLabel: _tr('cancel'),
+            deleteLabel: _tr('delete'),
             onOpen: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -663,12 +669,22 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onDelete;
   final bool canDelete;
+  final String patientPrefix;
+  final String deleteTitle;
+  final String deleteConfirm;
+  final String cancelLabel;
+  final String deleteLabel;
 
   const _SwipeToDeleteDocCard({
     required this.doc,
     required this.onOpen,
     required this.onDelete,
     required this.canDelete,
+    required this.patientPrefix,
+    required this.deleteTitle,
+    required this.deleteConfirm,
+    required this.cancelLabel,
+    required this.deleteLabel,
   });
 
   @override
@@ -707,7 +723,7 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
                       style:
                           TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                   if (doc['owner'] != null && doc['owner']['name'] != null)
-                    Text('Pacient: ${doc['owner']['name']}',
+                    Text('$patientPrefix: ${doc['owner']['name']}',
                         style: TextStyle(
                             color: Colors.grey.shade600, fontSize: 12)),
                 ])),
@@ -726,16 +742,16 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
         final confirm = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Șterge document?'),
-            content: Text('Ștergi "${doc['name']}"?'),
+            title: Text(deleteTitle),
+            content: Text('$deleteConfirm "${doc['name']}"?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Anulează'),
+                child: Text(cancelLabel),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Șterge'),
+                child: Text(deleteLabel),
               ),
             ],
           ),

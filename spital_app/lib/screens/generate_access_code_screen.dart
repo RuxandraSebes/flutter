@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/access_code_service.dart';
+import '../i18n/translations.dart';
 
 class GenerateAccessCodeScreen extends StatefulWidget {
   const GenerateAccessCodeScreen({super.key});
@@ -31,6 +32,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
   String? _sentToken;
   bool? _mailSent;
   String? _emailSentTo;
+
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   @override
   void initState() {
@@ -76,7 +79,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       _startCountdown();
     } else {
       setState(() => _loadingCode = false);
-      _snack(result['message'] ?? 'Eroare', isError: true);
+      _snack(result['message'] ?? _tr('error'), isError: true);
     }
   }
 
@@ -101,7 +104,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
   void _copyCode() {
     if (_code == null) return;
     Clipboard.setData(ClipboardData(text: _code!));
-    _snack('Cod copiat în clipboard');
+    _snack(_tr('code_copied'));
   }
 
   Color get _timerColor {
@@ -121,7 +124,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
   Future<void> _sendEmailInvite() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      _snack('Introdu o adresă de email validă', isError: true);
+      _snack(_tr('invalid_email_companion'), isError: true);
       return;
     }
 
@@ -138,14 +141,14 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       });
       _emailCtrl.clear();
     } else {
-      _snack(result['message'] ?? 'Eroare la trimitere', isError: true);
+      _snack(result['message'] ?? _tr('send_error'), isError: true);
     }
   }
 
   void _copyToken() {
     if (_sentToken == null) return;
     Clipboard.setData(ClipboardData(text: _sentToken!));
-    _snack('Token copiat în clipboard');
+    _snack(_tr('token_copied'));
   }
 
   void _snack(String msg, {bool isError = false}) {
@@ -165,15 +168,17 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Oferă acces aparținător'),
+        title: Text(_tr('grant_companion_access_title')),
         bottom: TabBar(
           controller: _tabs,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.dialpad), text: 'Cod numeric'),
-            Tab(icon: Icon(Icons.email_outlined), text: 'Invitație email'),
+          tabs: [
+            Tab(icon: const Icon(Icons.dialpad), text: _tr('tab_numeric_code')),
+            Tab(
+                icon: const Icon(Icons.email_outlined),
+                text: _tr('tab_email_invite')),
           ],
         ),
       ),
@@ -193,12 +198,12 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _howItWorksCard(
-            steps: const [
-              ('1', 'Apasă „Generează cod"'),
-              ('2', 'Comunică cele 6 cifre aparținătorului'),
-              ('3', 'Aparținătorul introduce codul în aplicație'),
+            steps: [
+              ('1', _tr('code_step_1')),
+              ('2', _tr('code_step_2')),
+              ('3', _tr('code_step_3')),
             ],
-            note: 'Codul este valabil 5 minute.',
+            note: _tr('code_valid_5min'),
           ),
 
           const SizedBox(height: 32),
@@ -224,8 +229,9 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                   ],
                 ),
                 child: Column(children: [
-                  const Text('Codul tău de acces',
-                      style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text(_tr('your_access_code'),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 14)),
                   const SizedBox(height: 10),
                   Text(
                     _code!,
@@ -253,7 +259,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
             OutlinedButton.icon(
               onPressed: _copyCode,
               icon: const Icon(Icons.copy, size: 18),
-              label: const Text('Copiază codul'),
+              label: Text(_tr('copy_code')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF1A5276),
                 side: const BorderSide(color: Color(0xFF1A5276)),
@@ -268,7 +274,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
               height: 120,
               alignment: Alignment.center,
               child: Text(
-                'Apasă butonul pentru a genera un cod',
+                _tr('press_to_generate'),
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
@@ -293,8 +299,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                       : Icons.generating_tokens),
               label: Text(
                 _code != null && !_expired
-                    ? 'Regenerează codul'
-                    : 'Generează cod',
+                    ? _tr('regenerate_code')
+                    : _tr('generate_code'),
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
@@ -320,12 +326,12 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _howItWorksCard(
-            steps: const [
-              ('1', 'Introdu adresa de email a aparținătorului'),
-              ('2', 'Apasă „Trimite invitație"'),
-              ('3', 'Aparținătorul primește un link pe email'),
+            steps: [
+              ('1', _tr('email_step_1')),
+              ('2', _tr('email_step_2')),
+              ('3', _tr('email_step_3')),
             ],
-            note: 'Link-ul este valabil 24 de ore.',
+            note: _tr('link_valid_24h'),
           ),
 
           const SizedBox(height: 28),
@@ -340,8 +346,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Adresa de email',
-                      style: TextStyle(
+                  Text(_tr('email_address'),
+                      style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1A5276))),
@@ -351,7 +357,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
                     decoration: InputDecoration(
-                      hintText: 'apartinatorul@exemplu.ro',
+                      hintText: _tr('email_placeholder'),
                       prefixIcon: const Icon(Icons.email_outlined,
                           color: Color(0xFF1A5276)),
                       border: OutlineInputBorder(
@@ -382,7 +388,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                                   strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.send_outlined),
                       label: Text(
-                        _sendingEmail ? 'Se trimite...' : 'Trimite invitație',
+                        _sendingEmail ? _tr('sending') : _tr('send_invite'),
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600),
                       ),
@@ -424,8 +430,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
           const Icon(Icons.people_alt_outlined,
               size: 40, color: Color(0xFF1A5276)),
           const SizedBox(height: 10),
-          const Text('Cum funcționează?',
-              style: TextStyle(
+          Text(_tr('how_it_works'),
+              style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1A5276))),
@@ -474,13 +480,13 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
         child: Column(children: [
           Icon(Icons.timer_off_outlined, size: 48, color: Colors.red.shade400),
           const SizedBox(height: 8),
-          Text('Codul a expirat',
+          Text(_tr('code_expired'),
               style: TextStyle(
                   color: Colors.red.shade700,
                   fontWeight: FontWeight.w600,
                   fontSize: 16)),
           const SizedBox(height: 4),
-          Text('Generează un cod nou',
+          Text(_tr('generate_new'),
               style: TextStyle(color: Colors.red.shade400, fontSize: 13)),
         ]),
       );
@@ -500,7 +506,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
           ),
           const SizedBox(height: 12),
           Text(
-            sent ? 'Invitație trimisă!' : 'Token generat (email indisponibil)',
+            sent ? _tr('invite_sent') : _tr('token_generated_no_mail'),
             style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -511,8 +517,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
             const SizedBox(height: 6),
             Text(
               sent
-                  ? 'Email trimis la $_emailSentTo'
-                  : 'Trimite manual tokenul de mai jos aparținătorului',
+                  ? '${_tr('email_sent_to')} $_emailSentTo'
+                  : _tr('send_token_manually'),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               textAlign: TextAlign.center,
             ),
@@ -530,7 +536,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                   Border.all(color: const Color(0xFF1A5276).withOpacity(0.2)),
             ),
             child: Column(children: [
-              Text('Token de invitație',
+              Text(_tr('invite_token_label'),
                   style: TextStyle(
                       color: Colors.grey.shade500,
                       fontSize: 11,
@@ -551,7 +557,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
           OutlinedButton.icon(
             onPressed: _copyToken,
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copiază tokenul'),
+            label: Text(_tr('copy_token')),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF1A5276),
               side: const BorderSide(color: Color(0xFF1A5276)),
@@ -566,8 +572,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
               _mailSent = null;
               _emailSentTo = null;
             }),
-            child: const Text('Trimite altă invitație',
-                style: TextStyle(color: Colors.grey)),
+            child: Text(_tr('send_another'),
+                style: const TextStyle(color: Colors.grey)),
           ),
         ]),
       ),

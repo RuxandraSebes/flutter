@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
+import '../i18n/translations.dart';
 import 'login_screen.dart';
 import 'user_form_dialog.dart';
 import 'hospital_form_dialog.dart' as hfd;
@@ -23,6 +24,8 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   List<Map<String, dynamic>> _users = [];
   bool _loadingH = true;
   bool _loadingU = true;
+
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   @override
   void initState() {
@@ -80,7 +83,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
     if (result == null) return;
     final r = await _admin.createHospital(result);
     if (r['success'] == true) {
-      _snack('Spital adăugat');
+      _snack(_tr('hospital_added'));
       _loadHospitals();
     } else
       _snack(r['message'], isError: true);
@@ -92,20 +95,23 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
     if (result == null) return;
     final r = await _admin.updateHospital(h['id'], result);
     if (r['success'] == true) {
-      _snack('Spital actualizat');
+      _snack(_tr('hospital_updated'));
       _loadHospitals();
     } else
       _snack(r['message'], isError: true);
   }
 
   Future<void> _deleteHospital(Map<String, dynamic> h) async {
-    final ok = await _confirm('Șterge spital', 'Ștergi "${h['name']}"?');
+    final ok = await _confirm(
+      _tr('delete_hospital'),
+      '${_tr('delete_hospital_confirm')} "${h['name']}"?',
+    );
     if (!ok) return;
     if (await _admin.deleteHospital(h['id'])) {
-      _snack('Spital șters');
+      _snack(_tr('hospital_deleted'));
       _loadHospitals();
     } else
-      _snack('Eroare la ștergere', isError: true);
+      _snack(_tr('delete_error'), isError: true);
   }
 
   // ── User CRUD ─────────────────────────────────────────────────────────────
@@ -117,7 +123,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
     if (result == null) return;
     final r = await _admin.createUser(result);
     if (r['success'] == true) {
-      _snack('Utilizator creat');
+      _snack(_tr('user_created'));
       _loadUsers();
     } else
       _snack(r['message'], isError: true);
@@ -130,20 +136,23 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
     if (result == null) return;
     final r = await _admin.updateUser(u['id'], result);
     if (r['success'] == true) {
-      _snack('Utilizator actualizat');
+      _snack(_tr('user_updated'));
       _loadUsers();
     } else
       _snack(r['message'], isError: true);
   }
 
   Future<void> _deleteUser(Map<String, dynamic> u) async {
-    final ok = await _confirm('Șterge utilizator', 'Ștergi "${u['name']}"?');
+    final ok = await _confirm(
+      _tr('delete_user'),
+      '${_tr('delete_user_confirm')} "${u['name']}"?',
+    );
     if (!ok) return;
     if (await _admin.deleteUser(u['id'])) {
-      _snack('Utilizator șters');
+      _snack(_tr('user_deleted'));
       _loadUsers();
     } else
-      _snack('Eroare la ștergere', isError: true);
+      _snack(_tr('delete_error'), isError: true);
   }
 
   Future<bool> _confirm(String title, String content) async {
@@ -155,11 +164,12 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anulează')),
+              child: Text(_tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Șterge', style: TextStyle(color: Colors.white)),
+            child: Text(_tr('delete'),
+                style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -175,8 +185,9 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Panou Global Admin',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          Text(_tr('global_admin_panel'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
           Text(widget.user.name,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
@@ -188,9 +199,11 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.local_hospital_outlined), text: 'Spitale'),
-            Tab(icon: Icon(Icons.people_outline), text: 'Utilizatori'),
+          tabs: [
+            Tab(
+                icon: const Icon(Icons.local_hospital_outlined),
+                text: _tr('hospitals')),
+            Tab(icon: const Icon(Icons.people_outline), text: _tr('users')),
           ],
         ),
       ),
@@ -204,12 +217,12 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   Widget _hospitalsTab() {
     if (_loadingH) return const Center(child: CircularProgressIndicator());
     return Column(children: [
-      _addBtn('Adaugă Spital', Icons.add, _addHospital),
+      _addBtn(_tr('add_hospital'), Icons.add, _addHospital),
       Expanded(
         child: RefreshIndicator(
           onRefresh: _loadHospitals,
           child: _hospitals.isEmpty
-              ? const Center(child: Text('Niciun spital înregistrat'))
+              ? Center(child: Text(_tr('no_hospitals')))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _hospitals.length,
@@ -228,7 +241,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
                             style:
                                 const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text(
-                            '${h['city'] ?? ''} · ${h['users_count'] ?? 0} utilizatori'),
+                            '${h['city'] ?? ''} · ${h['users_count'] ?? 0} ${_tr('users_count_suffix')}'),
                         trailing:
                             Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
@@ -254,12 +267,12 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   Widget _usersTab() {
     if (_loadingU) return const Center(child: CircularProgressIndicator());
     return Column(children: [
-      _addBtn('Adaugă Utilizator', Icons.person_add_outlined, _addUser),
+      _addBtn(_tr('add_user'), Icons.person_add_outlined, _addUser),
       Expanded(
         child: RefreshIndicator(
           onRefresh: _loadUsers,
           child: _users.isEmpty
-              ? const Center(child: Text('Niciun utilizator'))
+              ? Center(child: Text(_tr('no_users')))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _users.length,
@@ -353,15 +366,15 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
   String _roleLabel(String? role) {
     switch (role) {
       case 'global_admin':
-        return 'Admin Global';
+        return _tr('role_global_admin');
       case 'hospital_admin':
-        return 'Admin Spital';
+        return _tr('role_hospital_admin');
       case 'doctor':
-        return 'Medic';
+        return _tr('role_doctor');
       case 'patient':
-        return 'Pacient';
+        return _tr('role_patient_label');
       case 'companion':
-        return 'Însoțitor';
+        return _tr('role_companion_label');
       default:
         return role ?? '';
     }

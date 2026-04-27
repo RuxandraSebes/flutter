@@ -5,6 +5,7 @@
 // REQ-9: inline error messages below the create button
 
 import 'package:flutter/material.dart';
+import '../i18n/translations.dart';
 
 class UserFormDialog extends StatefulWidget {
   final List<Map<String, dynamic>> hospitals;
@@ -28,6 +29,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
   final _passwordCtrl = TextEditingController();
   final _cnpCtrl = TextEditingController();
   final _specCtrl = TextEditingController();
+
+  // Inside _UserFormDialogState
+  String _tr(String key) => AppLocalizations.of(context).get(key);
 
   String _role = 'patient';
   int? _hospitalId;
@@ -92,26 +96,26 @@ class _UserFormDialogState extends State<UserFormDialog> {
     _clearError();
 
     if (_nameCtrl.text.trim().isEmpty) {
-      _setError('Introdu numele complet.');
+      _setError(_tr('enter_name'));
       return;
     }
     if (_emailCtrl.text.trim().isEmpty || !_emailCtrl.text.contains('@')) {
-      _setError('Introdu o adresă de email validă.');
+      _setError(_tr('invalid_email'));
       return;
     }
     if (!_isEdit && _passwordCtrl.text.length < 6) {
-      _setError('Parola trebuie să aibă minim 6 caractere.');
+      _setError(_tr('password_short'));
       return;
     }
     // REQ-12: Validate CNP for patient and companion
     if (_needsCnp && !_isEdit) {
       final cnp = _cnpCtrl.text.trim();
       if (cnp.isEmpty) {
-        _setError('CNP-ul este obligatoriu pentru ${_roleLabel(_role)}.');
+        _setError('${_tr('cnp_required_for_role')} ${_roleLabel(_role)}.');
         return;
       }
       if (cnp.length != 13 || !RegExp(r'^\d{13}$').hasMatch(cnp)) {
-        _setError('CNP-ul trebuie să aibă exact 13 cifre.');
+        _setError(_tr('cnp_invalid'));
         return;
       }
     }
@@ -136,7 +140,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        _isEdit ? 'Editează utilizator' : 'Utilizator nou',
+        _isEdit ? _tr('edit_user') : _tr('new_user'),
         textAlign: TextAlign.center,
       ),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -144,13 +148,14 @@ class _UserFormDialogState extends State<UserFormDialog> {
         width: double.maxFinite,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            _field(_nameCtrl, 'Nume complet *', Icons.person_outline),
+            _field(_nameCtrl, _tr('full_name_required_star'),
+                Icons.person_outline),
             const SizedBox(height: 12),
-            _field(_emailCtrl, 'Email *', Icons.email_outlined,
+            _field(_emailCtrl, _tr('email_star'), Icons.email_outlined,
                 type: TextInputType.emailAddress),
             if (!_isEdit) ...[
               const SizedBox(height: 12),
-              _field(_passwordCtrl, 'Parolă *', Icons.lock_outline,
+              _field(_passwordCtrl, _tr('password_star'), Icons.lock_outline,
                   obscure: _obscure,
                   suffix: IconButton(
                       icon: Icon(_obscure
@@ -163,7 +168,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
             DropdownButtonFormField<String>(
               value:
                   _allowedRoles.contains(_role) ? _role : _allowedRoles.first,
-              decoration: _dec('Rol', Icons.badge_outlined),
+              decoration: _dec(_tr('role_label'), Icons.badge_outlined),
               items: _allowedRoles
                   .map((r) =>
                       DropdownMenuItem(value: r, child: Text(_roleLabel(r))))
@@ -182,10 +187,11 @@ class _UserFormDialogState extends State<UserFormDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<int?>(
                 value: _hospitalId,
-                decoration: _dec('Spital', Icons.local_hospital_outlined),
+                decoration:
+                    _dec(_tr('hospital_label'), Icons.local_hospital_outlined),
                 items: [
-                  const DropdownMenuItem(
-                      value: null, child: Text('— Fără spital —')),
+                  DropdownMenuItem(
+                      value: null, child: Text(_tr('no_hospital_selected'))),
                   ...widget.hospitals.map((h) => DropdownMenuItem(
                       value: h['id'] as int, child: Text(h['name'] ?? ''))),
                 ],
@@ -197,7 +203,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
               const SizedBox(height: 12),
               _field(
                 _cnpCtrl,
-                _isEdit ? 'CNP (13 cifre)' : 'CNP * (13 cifre, obligatoriu)',
+                _isEdit ? _tr('cnp_label_edit') : _tr('cnp_label_create'),
                 Icons.badge_outlined,
                 type: TextInputType.number,
               ),
@@ -205,8 +211,8 @@ class _UserFormDialogState extends State<UserFormDialog> {
             // REQ-12: Only specialization for doctors — license_number removed
             if (_needsDoctor) ...[
               const SizedBox(height: 12),
-              _field(
-                  _specCtrl, 'Specializare', Icons.medical_services_outlined),
+              _field(_specCtrl, _tr('specialization_label'),
+                  Icons.medical_services_outlined),
             ],
             // REQ-11: is_active toggle REMOVED entirely — no longer shown anywhere
             const SizedBox(height: 16),
@@ -216,7 +222,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
               children: [
                 TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Anulează')),
+                    child: Text(_tr('cancel'))),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -225,7 +231,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10))),
                   onPressed: _submit,
-                  child: Text(_isEdit ? 'Salvează' : 'Creează'),
+                  child: Text(_isEdit ? _tr('save') : _tr('create')),
                 ),
               ],
             ),
@@ -297,15 +303,15 @@ class _UserFormDialogState extends State<UserFormDialog> {
   String _roleLabel(String r) {
     switch (r) {
       case 'global_admin':
-        return 'Admin Global';
+        return _tr('role_global_admin');
       case 'hospital_admin':
-        return 'Admin Spital';
+        return _tr('role_hospital_admin');
       case 'doctor':
-        return 'Medic';
+        return _tr('role_doctor');
       case 'patient':
-        return 'Pacient';
+        return _tr('patient');
       case 'companion':
-        return 'Însoțitor';
+        return _tr('companion');
       default:
         return r;
     }

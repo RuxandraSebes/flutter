@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:spital_visu_upu/i18n/language_provider.dart';
 import 'package:spital_visu_upu/i18n/translations.dart';
 import 'models/user_model.dart';
@@ -8,7 +9,6 @@ import 'screens/global_admin_screen.dart';
 import 'screens/hospital_admin_screen.dart';
 import 'screens/doctor_screen.dart';
 import 'screens/claim_account_screen.dart';
-import 'screens/invite_token_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
@@ -27,22 +27,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Obține provider-ul pentru a accesa locale-ul curent
-    final lp = LanguageProvider.of(context);
+    final locale = LanguageProvider.localeOf(context);
 
     return MaterialApp(
       title: 'Spital Vișeu UPU',
       debugShowCheckedModeBanner: false,
-
-      // 1. Setează locale-ul curent
-      locale: lp?.locale ?? const Locale('ro'),
-
-      // 2. Adaugă delegații necesari
+      locale: locale, // was: lp?.locale ?? const Locale('ro')
       localizationsDelegates: const [
-        AppLocalizationsDelegate(), // Delegatul tău din translations.dart
-        // Poți adăuga și GlobalMaterialLocalizations.delegate dacă ai pachetul instalat
+        AppLocalizationsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
       ],
-
-      // 3. Limbi suportate
       supportedLocales: const [
         Locale('ro'),
         Locale('en'),

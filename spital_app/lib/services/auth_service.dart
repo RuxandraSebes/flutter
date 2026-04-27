@@ -82,12 +82,9 @@ class AuthService {
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
 
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Date incorecte',
-      };
+      return {'success': false, 'message': 'error_invalid_credentials'};
     } catch (e) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -127,14 +124,14 @@ class AuthService {
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
 
-      String message = data['message'] ?? 'Eroare la inregistrare';
+      String message = data['message'] ?? 'error_register';
       if (data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
         message = (errors.values.first as List).first.toString();
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -158,9 +155,9 @@ class AuthService {
         await _saveUser(data['user']);
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {'success': false, 'message': data['message'] ?? 'error'};
     } catch (e) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
