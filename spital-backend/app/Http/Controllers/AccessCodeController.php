@@ -345,7 +345,7 @@ class AccessCodeController extends Controller
               </p>
 
               <!-- REQ-8: Primary deep-link button — opens app if installed -->
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <!-- <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding:8px 0 16px;">
                     <a href="{$appDeepLink}"
@@ -356,7 +356,7 @@ class AccessCodeController extends Controller
                     </a>
                   </td>
                 </tr>
-              </table>
+              </table> -->
 
               <!-- REQ-8: Fallback link for users without the app -->
               <p style="color:#888;font-size:13px;text-align:center;margin:0 0 12px;">

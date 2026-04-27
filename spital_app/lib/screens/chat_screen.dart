@@ -45,6 +45,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    // Remove the fire-and-forget getMessages call — it's redundant
+    // and races with the conversations reload on pop.
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -288,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(24),
           child: InkWell(
             borderRadius: BorderRadius.circular(24),
-            onTap: _sending ? null : _send,
+            onTap: _sending ? null : _send, // ← restored: sends a message
             child: Container(
               width: 46,
               height: 46,
@@ -355,7 +357,6 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment:
             isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // ✅ ROLE BADGE — shown for ALL messages, aligned to match bubble side
           Padding(
             padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
             child: Align(
@@ -384,8 +385,6 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-
-          // ✅ MESSAGE BUBBLE
           Align(
             alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(

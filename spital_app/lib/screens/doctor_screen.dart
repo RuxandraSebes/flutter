@@ -158,6 +158,7 @@ class _DoctorScreenState extends State<DoctorScreen>
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
+          const LanguageDropdown(),
           IconButton(
               icon: const Icon(Icons.logout),
               tooltip: l.get('logout'),

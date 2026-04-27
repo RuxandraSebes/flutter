@@ -146,16 +146,25 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                               ],
                             ],
                           ),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                currentUser: widget.currentUser,
-                                patientId: conv['patient_id'],
-                                patientName: conv['patient_name'] ?? '',
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  currentUser: widget.currentUser,
+                                  patientId: conv['patient_id'],
+                                  patientName: conv['patient_name'] ?? '',
+                                ),
                               ),
-                            ),
-                          ).then((_) => _load()),
+                            );
+
+                            if (!mounted) return;
+                            // Add a small delay so the backend's markSeen (called during
+                            // dispose's getMessages) has time to commit before we reload
+                            await Future.delayed(
+                                const Duration(milliseconds: 300));
+                            await _load();
+                          },
                         ),
                       );
                     },

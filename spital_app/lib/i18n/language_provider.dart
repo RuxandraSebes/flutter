@@ -84,7 +84,7 @@ class _LangOption {
 
 const List<_LangOption> _kLanguages = [
   _LangOption('ro', 'Română', '🇷🇴'),
-  _LangOption('en', 'English', '🇬🇧'),
+  //_LangOption('en', 'English', '🇬🇧'),
   _LangOption('hu', 'Magyar', '🇭🇺'),
   _LangOption('uk', 'Українська', '🇺🇦'),
   _LangOption('sk', 'Slovenčina', '🇸🇰'),

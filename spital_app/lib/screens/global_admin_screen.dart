@@ -4,6 +4,7 @@ import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../i18n/translations.dart';
 import 'login_screen.dart';
+import '../i18n/language_provider.dart';
 import 'user_form_dialog.dart';
 import 'hospital_form_dialog.dart' as hfd;
 
@@ -192,6 +193,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
+          const LanguageDropdown(),
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout)
         ],
         bottom: TabBar(

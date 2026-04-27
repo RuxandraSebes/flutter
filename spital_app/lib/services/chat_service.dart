@@ -45,6 +45,22 @@ class ChatService {
     return [];
   }
 
+  Future<Map<String, dynamic>> markSeen(int patientId) async {
+    final response = await http.post(
+      Uri.parse('$_base/conversations/seen'),
+      headers: await _headers(),
+      body: {
+        'patient_id': patientId.toString(),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return {'success': true};
+    }
+
+    return {'success': false};
+  }
+
   /// Send a message.
   Future<Map<String, dynamic>> sendMessage(
       int patientId, String message) async {

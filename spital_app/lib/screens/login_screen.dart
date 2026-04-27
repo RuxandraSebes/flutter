@@ -68,101 +68,115 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset(
-                  'assets/logo.svg',
-                  height: 120,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  _tr('portal_upu'),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(children: [
-                      _field(
-                        controller: _emailCtrl,
-                        label: _tr('email'),
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
+        child: Stack(
+          children: [
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SvgPicture.asset(
+                      'assets/logo.svg',
+                      height: 120,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      _tr('portal_upu'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 16),
-                      _field(
-                        controller: _passwordCtrl,
-                        label: _tr('password'),
-                        icon: Icons.lock_outline,
-                        obscure: _obscure,
-                        suffix: IconButton(
-                          icon: Icon(_obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1A5276),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                    ),
+                    const SizedBox(height: 40),
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(children: [
+                          _field(
+                            controller: _emailCtrl,
+                            label: _tr('email'),
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
                           ),
-                          child: _loading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : Text(
-                                  _tr('login'),
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                        ),
+                          const SizedBox(height: 16),
+                          _field(
+                            controller: _passwordCtrl,
+                            label: _tr('password'),
+                            icon: Icons.lock_outline,
+                            obscure: _obscure,
+                            suffix: IconButton(
+                              icon: Icon(_obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _loading ? null : _handleLogin,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1A5276),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: _loading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white))
+                                  : Text(
+                                      _tr('login'),
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                            ),
+                          ),
+                        ]),
                       ),
-                    ]),
-                  ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const RegisterScreen()),
+                      ),
+                      child: Text(
+                        _tr('no_account_register'),
+                        style: const TextStyle(color: Color(0xFF1A5276)),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                // Language dropdown on the login screen too
-                const LanguageDropdown(),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  ),
-                  child: Text(
-                    _tr('no_account_register'),
-                    style: const TextStyle(color: Color(0xFF1A5276)),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+
+            // 🔹 Language switcher în dreapta sus
+            Positioned(
+              top: 12,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: const LanguageDropdown(),
+              ),
+            ),
+          ],
         ),
       ),
     );

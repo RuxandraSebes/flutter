@@ -14,6 +14,7 @@ import 'login_screen.dart';
 import 'user_form_dialog.dart';
 import 'companion_link_dialog.dart';
 import 'pdf_viewer_screen.dart';
+import "../i18n/language_provider.dart";
 
 class HospitalAdminScreen extends StatefulWidget {
   final UserModel user;
@@ -222,6 +223,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
+          const LanguageDropdown(),
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout)
         ],
         bottom: TabBar(

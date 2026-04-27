@@ -82,9 +82,9 @@ class AuthService {
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
 
-      return {'success': false, 'message': 'error_invalid_credentials'};
+      return {'success': false, 'message': 'Date de autentificare invalide'};
     } catch (e) {
-      return {'success': false, 'message': 'connection_error'};
+      return {'success': false, 'message': 'Eroare de conexiune'};
     }
   }
 
@@ -124,14 +124,14 @@ class AuthService {
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
 
-      String message = data['message'] ?? 'error_register';
+      String message = data['message'] ?? 'Eroare la înregistrare';
       if (data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
         message = (errors.values.first as List).first.toString();
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': 'connection_error'};
+      return {'success': false, 'message': 'Eroare de conexiune'};
     }
   }
 
@@ -155,9 +155,12 @@ class AuthService {
         await _saveUser(data['user']);
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
-      return {'success': false, 'message': data['message'] ?? 'error'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Eroare la actualizarea profilului'
+      };
     } catch (e) {
-      return {'success': false, 'message': 'connection_error'};
+      return {'success': false, 'message': 'Eroare de conexiune'};
     }
   }
 

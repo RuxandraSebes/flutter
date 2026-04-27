@@ -358,6 +358,9 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
                     autocorrect: false,
                     decoration: InputDecoration(
                       hintText: _tr('email_placeholder'),
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400, // 👈 mai deschis
+                      ),
                       prefixIcon: const Icon(Icons.email_outlined,
                           color: Color(0xFF1A5276)),
                       border: OutlineInputBorder(

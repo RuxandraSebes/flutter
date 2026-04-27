@@ -371,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           builder: (_) => const RedeemAccessCodeScreen()));
                   if (result == true) _fetchDocuments();
                 }),
-          const LanguageDropdown(),
+
           // ── Chat icon with unread badge ─────────────────────────────────
           Stack(children: [
             IconButton(
@@ -395,6 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             fontWeight: FontWeight.w700)),
                   )),
           ]),
+          const LanguageDropdown(),
           IconButton(
               icon: const Icon(Icons.logout),
               tooltip: _tr('logout'),
