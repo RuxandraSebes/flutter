@@ -163,7 +163,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pushAndRemoveUntil(context,
           MaterialPageRoute(builder: (_) => roleBasedHome(user)), (_) => false);
     } else {
-      _setError(result['message'] ?? _tr('connection_error'));
+      // result['message'] may be an i18n key or a raw server message
+      final rawKey = result['message'] as String? ?? 'connection_error';
+      _setError(_tr(rawKey));
     }
   }
 
@@ -176,89 +178,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF1A5276),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language),
-            onPressed: () => showDialog(
-              context: context,
-              builder: (ctx) => SimpleDialog(
-                title: Text(_tr('language')),
-                children: [
-                  SimpleDialogOption(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      LanguageProvider.of(context)
-                          ?.setLocale(const Locale('ro'));
-                    },
-                    child: const Row(
-                      children: [
-                        Text('🇷🇴', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 15),
-                        Text('Română', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                  SimpleDialogOption(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      LanguageProvider.of(context)
-                          ?.setLocale(const Locale('en'));
-                    },
-                    child: const Row(
-                      children: [
-                        Text('🇬🇧', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 15),
-                        Text('English', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                  SimpleDialogOption(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      LanguageProvider.of(context)
-                          ?.setLocale(const Locale('hu'));
-                    },
-                    child: const Row(
-                      children: [
-                        Text('🇭🇺', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 15),
-                        Text('Magyar', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                  SimpleDialogOption(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      LanguageProvider.of(context)
-                          ?.setLocale(const Locale('uk'));
-                    },
-                    child: const Row(
-                      children: [
-                        Text('🇺🇦', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 15),
-                        Text('Українська', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                  SimpleDialogOption(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      LanguageProvider.of(context)
-                          ?.setLocale(const Locale('sk'));
-                    },
-                    child: const Row(
-                      children: [
-                        Text('🇸🇰', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 15),
-                        Text('Slovenčina', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        // ── Replaced old SimpleDialog language switcher with LanguageDropdown ──
+        // LanguageDropdown is a const widget that reads the locale from the
+        // inherited widget, so the flag updates immediately on switch.
+        actions: const [LanguageDropdown()],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -418,7 +341,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _cnpController,
           keyboardType: TextInputType.number,
           maxLength: 13,
-          // Only allow digits
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onChanged: (_) => _clearError(),
           decoration: InputDecoration(
@@ -472,12 +394,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     : Colors.grey.shade50,
           ),
         ),
-        // REQ-2: Real-time progress/error below CNP field
         if (_cnpController.text.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Row(children: [
-              // Progress bar
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(4),

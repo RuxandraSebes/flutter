@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'translations.dart';
 
-// ── Language notifier (simple InheritedWidget approach) ────────────────────
+// ── Language notifier ──────────────────────────────────────────────────────
 
 class LanguageProvider extends StatefulWidget {
   final Widget child;
@@ -15,7 +15,6 @@ class LanguageProvider extends StatefulWidget {
     return context.findAncestorStateOfType<_LanguageProviderState>();
   }
 
-  // ADD THIS METHOD
   static Locale localeOf(BuildContext context) {
     return context
             .dependOnInheritedWidgetOfExactType<_LocaleInherited>()
@@ -74,23 +73,113 @@ class _LocaleInherited extends InheritedWidget {
   bool updateShouldNotify(_LocaleInherited old) => old.locale != locale;
 }
 
-// ── Language selector dialog ───────────────────────────────────────────────
+// ── Supported languages ────────────────────────────────────────────────────
+
+class _LangOption {
+  final String code;
+  final String label;
+  final String flag;
+  const _LangOption(this.code, this.label, this.flag);
+}
+
+const List<_LangOption> _kLanguages = [
+  _LangOption('ro', 'Română', '🇷🇴'),
+  _LangOption('en', 'English', '🇬🇧'),
+  _LangOption('hu', 'Magyar', '🇭🇺'),
+  _LangOption('uk', 'Українська', '🇺🇦'),
+  _LangOption('sk', 'Slovenčina', '🇸🇰'),
+];
+
+// ── LanguageDropdown ───────────────────────────────────────────────────────
+//
+// Reads the locale via dependOnInheritedWidgetOfExactType so Flutter
+// automatically schedules a rebuild whenever setLocale() is called —
+// the flag emoji updates without any extra setState.
+//
+// Drop into any AppBar actions list:
+//   actions: [ const LanguageDropdown(), ... ]
+
+class LanguageDropdown extends StatelessWidget {
+  const LanguageDropdown({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Registering as a dependent of _LocaleInherited is what makes this
+    // widget rebuild when the locale changes.
+    final currentLocale = context
+            .dependOnInheritedWidgetOfExactType<_LocaleInherited>()
+            ?.locale ??
+        const Locale('ro');
+
+    final currentCode = currentLocale.languageCode;
+    final current = _kLanguages.firstWhere(
+      (l) => l.code == currentCode,
+      orElse: () => _kLanguages.first,
+    );
+
+    // findAncestorStateOfType does NOT register a rebuild dependency — that is
+    // intentional; we already depend on the inherited widget above.
+    final provider = LanguageProvider.of(context);
+
+    return PopupMenuButton<String>(
+      tooltip: 'Language / Limbă',
+      offset: const Offset(0, 48),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 6,
+      onSelected: (code) => provider?.setLocale(Locale(code)),
+      itemBuilder: (_) => _kLanguages
+          .map(
+            (lang) => PopupMenuItem<String>(
+              value: lang.code,
+              child: Row(children: [
+                Text(lang.flag, style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    lang.label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: lang.code == currentCode
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                      color: lang.code == currentCode
+                          ? const Color(0xFF1A5276)
+                          : null,
+                    ),
+                  ),
+                ),
+                if (lang.code == currentCode)
+                  const Icon(Icons.check_circle,
+                      color: Color(0xFF1A5276), size: 16),
+              ]),
+            ),
+          )
+          .toList(),
+      // Button face: flag + small chevron
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(current.flag, style: const TextStyle(fontSize: 22)),
+          const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── LanguageSelectorDialog — kept for screens that still reference it ───────
 
 class LanguageSelectorDialog extends StatelessWidget {
   const LanguageSelectorDialog({super.key});
 
-  static const List<_LangOption> _languages = [
-    _LangOption('ro', 'Română', '🇷🇴'),
-    _LangOption('en', 'English', '🇬🇧'),
-    _LangOption('hu', 'Magyar', '🇭🇺'),
-    _LangOption('uk', 'Українська', '🇺🇦'),
-    _LangOption('sk', 'Slovenčina', '🇸🇰'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final provider = LanguageProvider.of(context);
-    final currentCode = provider?.locale.languageCode ?? 'ro';
+    final currentCode = context
+            .dependOnInheritedWidgetOfExactType<_LocaleInherited>()
+            ?.locale
+            .languageCode ??
+        'ro';
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -109,7 +198,7 @@ class LanguageSelectorDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        children: _languages
+        children: _kLanguages
             .map((lang) => _LangTile(
                   lang: lang,
                   selected: lang.code == currentCode,
@@ -178,14 +267,7 @@ class _LangTile extends StatelessWidget {
   }
 }
 
-class _LangOption {
-  final String code;
-  final String label;
-  final String flag;
-  const _LangOption(this.code, this.label, this.flag);
-}
-
-// ── Language button for AppBar ─────────────────────────────────────────────
+// ── LanguageButton — legacy icon-only button ───────────────────────────────
 
 class LanguageButton extends StatelessWidget {
   const LanguageButton({super.key});

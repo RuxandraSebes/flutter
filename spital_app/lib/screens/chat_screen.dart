@@ -187,7 +187,6 @@ class _ChatScreenState extends State<ChatScreen> {
                         roleLabel: _senderRoleLabel(_messages[i]),
                         roleColor: _senderRoleColor(_messages[i]),
                         roleIcon: _senderRoleIcon(_messages[i]),
-                        showSenderName: !_isMine(_messages[i]),
                       ),
                     ),
         ),
@@ -407,16 +406,16 @@ class _ChatScreenState extends State<ChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> msg;
   final bool isMine;
-  final bool showSenderName;
+
   // REQ-10: role-based display fields
   final String roleLabel;
   final Color roleColor;
   final IconData roleIcon;
 
   const _MessageBubble({
+    super.key,
     required this.msg,
     required this.isMine,
-    required this.showSenderName,
     required this.roleLabel,
     required this.roleColor,
     required this.roleIcon,
@@ -428,37 +427,48 @@ class _MessageBubble extends StatelessWidget {
     final textColor = isMine ? Colors.white : const Color(0xFF2C3E50);
     final time = _formatTime(msg['created_at']);
 
+    final senderName = (msg['sender_name'] ?? '').toString();
+    final displayName = senderName.isNotEmpty ? ' · $senderName' : '';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment:
             isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // REQ-10: role badge for non-mine messages
-          if (showSenderName)
+          // ✅ ROLE BADGE (DOAR pentru ceilalți)
+          if (!isMine)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: roleColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(roleIcon, size: 12, color: roleColor),
-                  const SizedBox(width: 4),
-                  // REQ-10: "Role · Name" format
-                  Text(
-                    '$roleLabel · ${msg['sender_name'] ?? ''}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: roleColor,
-                    ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: roleColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ]),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(roleIcon, size: 12, color: roleColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$roleLabel$displayName',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: roleColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
+
+          // ✅ MESSAGE BUBBLE
           Container(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.72,
@@ -486,9 +496,15 @@ class _MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   msg['message'] ?? '',
-                  style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 4),
+
+                // TIME + STATUS
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

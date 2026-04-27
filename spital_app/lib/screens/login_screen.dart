@@ -51,7 +51,10 @@ class _LoginScreenState extends State<LoginScreen> {
         (_) => false,
       );
     } else {
-      _snack(result['message'] ?? _tr('error'), isError: true);
+      // result['message'] is an i18n key (e.g. 'error_invalid_credentials')
+      // — translate it before displaying.
+      final rawKey = result['message'] as String? ?? 'error';
+      _snack(_tr(rawKey), isError: true);
     }
   }
 
@@ -144,6 +147,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                // Language dropdown on the login screen too
+                const LanguageDropdown(),
+                const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.push(
                     context,

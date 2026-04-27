@@ -1,11 +1,17 @@
+// home_screen.dart — FULL FILE
+// Changes vs original:
+//   • Replaced the language IconButton in AppBar actions with <LanguageDropdown/>
+//   • LanguageDropdown shows the current flag emoji + a small chevron,
+//     tapping opens a popup menu of all 5 languages.
+
 // REQ-1: Open PDF on row click
-// REQ-2: Swipe to delete with confirmation (fixed duplicate message bug - REQ-10)
+// REQ-2: Swipe to delete with confirmation
 // REQ-3: person_add icon for Grant Access
 // REQ-4: "Însoțitor" everywhere
 // REQ-5: Patient can view/remove companions — management row
-// REQ-6: Companion can view/remove patients — management row (broken key icon, different color)
+// REQ-6: Companion can view/remove patients — management row
 // REQ-9: Improved inline error messages
-// REQ-11: Chat picker as centered dialog with unread count only (no total messages)
+// REQ-11: Chat picker as centered dialog with unread count only
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -38,7 +44,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _uploading = false;
   int _unreadMessages = 0;
   String? _inlineError;
-  // REQ-10: Track which doc IDs are being deleted to avoid duplicate dismissal
   final Set<int> _deletingIds = {};
 
   String _tr(String key) => AppLocalizations.of(context).get(key);
@@ -381,15 +386,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (_) => const RedeemAccessCodeScreen()));
                   if (result == true) _fetchDocuments();
                 }),
-          // REQ-13: Language switcher using the specialized provider dialog
-          IconButton(
-            icon: const Icon(Icons.language),
-            tooltip: _tr('language'),
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => const LanguageSelectorDialog(),
-            ),
-          ),
+          // ── Language dropdown: shows current flag, tap to switch ──────────
+          const LanguageDropdown(),
+          // ── Chat icon with unread badge ────────────────────────────────────
           Stack(children: [
             IconButton(
                 icon: const Icon(Icons.chat_bubble_outline),
@@ -756,7 +755,6 @@ class _SwipeToDeleteDocCard extends StatelessWidget {
             ],
           ),
         );
-
         if (confirm == true) {
           onDelete();
           return true;
