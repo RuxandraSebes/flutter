@@ -151,11 +151,13 @@ class _DoctorScreenState extends State<DoctorScreen>
         foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.user.name,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              overflow: TextOverflow.ellipsis),
           Text(
-              '${widget.user.specialization ?? l.get('doctor')} · ${widget.user.hospitalName}',
-              style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            '${widget.user.specialization ?? l.get('doctor')} · ${widget.user.hospitalName}',
+            style: const TextStyle(fontSize: 12, color: Colors.white70),
+            overflow: TextOverflow.ellipsis,
+          ),
         ]),
         actions: [
           const LanguageDropdown(),

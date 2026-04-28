@@ -158,9 +158,9 @@ class _CompanionLinkDialogState extends State<CompanionLinkDialog> {
             const SizedBox(height: 8),
             // REQ-14: Search bar for companions
             _searchField(
-              _patientSearchCtrl,
+              _companionSearchCtrl,
               l.get('search_by_name_or_cnp'),
-              (v) => setState(() => _patientQuery = v),
+              (v) => setState(() => _companionQuery = v),
             ),
             const SizedBox(height: 8),
             // REQ-14: Scrollable list of companions

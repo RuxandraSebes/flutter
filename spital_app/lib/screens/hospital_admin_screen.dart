@@ -217,10 +217,11 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
         foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(_tr('hospital_admin'),
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              overflow: TextOverflow.ellipsis),
           Text(widget.user.hospitalName,
-              style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+              overflow: TextOverflow.ellipsis),
         ]),
         actions: [
           const LanguageDropdown(),

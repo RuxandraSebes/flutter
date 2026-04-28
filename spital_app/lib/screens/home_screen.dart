@@ -344,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Text(u.name,
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          Text(u.roleLabel,
+          Text(_tr(u.role),
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
