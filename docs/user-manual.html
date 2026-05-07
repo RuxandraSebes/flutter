@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>User Manual - Spital App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 32px; line-height: 1.5; color: #1f2937; }
+    h1, h2, h3 { color: #0f172a; }
+    code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+    .note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 10px; margin: 10px 0; }
+    .warn { background: #fff7ed; border-left: 4px solid #ea580c; padding: 10px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>User Manual</h1>
+  <p><strong>Application:</strong> Spital mobile app</p>
+  <p>This manual explains how each user role should use the app in daily workflows.</p>
+
+  <h2>1. First Time Setup</h2>
+  <ol>
+    <li>Install the app on your mobile device.</li>
+    <li>Open the app and choose your language from the language selector.</li>
+    <li>Create an account or sign in with existing credentials.</li>
+    <li>If prompted, verify your email using the 6-digit code you receive by email.</li>
+  </ol>
+
+  <h2>2. Login and Account Basics</h2>
+  <ul>
+    <li><strong>Login:</strong> enter email + password on the sign-in screen.</li>
+    <li><strong>Register:</strong> choose role, fill required details, and complete email verification.</li>
+    <li><strong>Logout:</strong> available from the app bar in each dashboard.</li>
+  </ul>
+  <div class="warn">
+    If login fails, verify email/password and check backend connectivity. The app shows a translated error message when credentials are invalid.
+  </div>
+
+  <h2>3. Role-Based Usage</h2>
+
+  <h3>3.1 Patient</h3>
+  <ol>
+    <li>Open <strong>Home</strong> to see your documents.</li>
+    <li>Upload a PDF document with the upload button.</li>
+    <li>To share access with a companion:
+      <ul>
+        <li>Generate a 6-digit code, or</li>
+        <li>Send an email invitation token.</li>
+      </ul>
+    </li>
+    <li>Use <strong>My Companions</strong> to review or remove linked companions.</li>
+    <li>Open <strong>Messages</strong> to communicate with the medical side.</li>
+  </ol>
+
+  <h3>3.2 Companion</h3>
+  <ol>
+    <li>Sign in with a companion account.</li>
+    <li>Link yourself to a patient:
+      <ul>
+        <li>Redeem a 6-digit code from the patient, or</li>
+        <li>Open and accept an email invitation token/deep-link.</li>
+      </ul>
+    </li>
+    <li>After linking, the patient documents become visible in your home view.</li>
+    <li>Use <strong>My Patients</strong> to manage linked patient relationships.</li>
+  </ol>
+
+  <h3>3.3 Doctor</h3>
+  <ol>
+    <li>Open the Doctor dashboard.</li>
+    <li>Use the Patients tab to search/select patient records.</li>
+    <li>Upload documents to a selected patient.</li>
+    <li>Use Documents tab to review file list.</li>
+    <li>Use Messages tab to chat with patient side.</li>
+    <li>Check ingestion status screen when needed (operational monitoring).</li>
+  </ol>
+
+  <h3>3.4 Hospital Admin</h3>
+  <ol>
+    <li>Open Hospital Admin dashboard.</li>
+    <li>Create/edit/deactivate relevant users in your scope.</li>
+    <li>Link or unlink patient-companion relationships.</li>
+    <li>Review hospital-related documents and users.</li>
+  </ol>
+
+  <h3>3.5 Global Admin</h3>
+  <ol>
+    <li>Open Global Admin dashboard.</li>
+    <li>Manage hospitals (create/update/delete).</li>
+    <li>Manage users across roles and hospitals.</li>
+    <li>Use role-specific controls to maintain system structure.</li>
+  </ol>
+
+  <h2>4. Companion Access (Detailed)</h2>
+  <h3>Numeric Code Flow</h3>
+  <ol>
+    <li>Patient generates a code.</li>
+    <li>Patient shares the code with companion.</li>
+    <li>Companion enters code in redeem screen.</li>
+    <li>Link is created if code is valid and not expired.</li>
+  </ol>
+
+  <h3>Email Invitation Flow</h3>
+  <ol>
+    <li>Patient sends invitation to companion email.</li>
+    <li>Companion opens invitation and accepts it.</li>
+    <li>App links companion to patient and grants view access.</li>
+  </ol>
+  <div class="note">
+    Numeric codes and invitation tokens expire. If expired, ask the patient to generate/send a new one.
+  </div>
+
+  <h2>5. Messaging</h2>
+  <ul>
+    <li>Messages are organized by conversation (usually patient context).</li>
+    <li>Unread indicators appear in conversation and dashboard views.</li>
+    <li>Open a conversation, write your message, and send.</li>
+  </ul>
+
+  <h2>6. Language and Translations</h2>
+  <ul>
+    <li>Language can be changed from the app bar language selector.</li>
+    <li>All UI labels and backend messages are intended to appear translated.</li>
+    <li>If you see a raw key (example: <code>error_invalid_credentials</code>), report it as a translation defect.</li>
+  </ul>
+
+  <h2>7. Troubleshooting</h2>
+  <h3>Cannot Sign In</h3>
+  <ul>
+    <li>Check email/password.</li>
+    <li>Ensure email is verified.</li>
+    <li>Confirm backend is running and reachable.</li>
+  </ul>
+
+  <h3>No Documents Visible</h3>
+  <ul>
+    <li>For companions: verify patient link is active.</li>
+    <li>Pull to refresh or reopen screen.</li>
+  </ul>
+
+  <h3>Cannot Link Companion</h3>
+  <ul>
+    <li>Check token/code expiration.</li>
+    <li>Ensure correct role is used (patient generates, companion redeems).</li>
+  </ul>
+
+  <h2>8. Best Practices</h2>
+  <ul>
+    <li>Use strong passwords and keep credentials private.</li>
+    <li>Only share access codes/tokens with intended recipients.</li>
+    <li>Log out on shared devices.</li>
+    <li>Keep app updated to receive bug fixes and security improvements.</li>
+  </ul>
+
+  <h2>9. Support Checklist</h2>
+  <p>When contacting support, include:</p>
+  <ul>
+    <li>your role (patient/companion/doctor/admin)</li>
+    <li>screen where issue occurred</li>
+    <li>exact error message shown</li>
+    <li>time of issue and reproduction steps</li>
+  </ul>
+</body>
+</html>

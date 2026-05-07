@@ -42,8 +42,8 @@ const Map<String, String> translationsRo = {
   'associate_patient': 'Asociează-te cu un pacient',
   'enter_code_desc': 'Introdu codul primit de la pacient',
   'messages': 'Mesaje',
-  'my_companions': 'Însoțitorii mei',
-  'my_patients': 'Pacienții mei',
+  'my_companions': 'Gestionează însoțitorii mei',
+  'my_patients': 'Gestionează pacienții mei',
 
   // Documents
   'delete_document': 'Șterge document',
@@ -345,4 +345,63 @@ const Map<String, String> translationsRo = {
   'hospital_load_error': 'Nu s-au putut încărca spitalele',
   "legend": "Legendă",
   "doctor_desc": "Medic",
+  "verify_email_title": "Confirmă adresa de email",
+  "verify_email_sent_to": "Am trimis un cod de 6 cifre la",
+  "verify_button": "Confirmă contul",
+  "resend_code": "Retrimite codul",
+  "enter_full_code": "Introdu toate cele 6 cifre",
+  "error_invalid_or_expired_code":
+      "Cod incorect sau expirat. Încearcă din nou.",
+  "error_email_not_verified": "Contul nu a fost verificat. Verifică email-ul.",
+  "verification_code_resent": "Un cod nou a fost trimis pe email.",
+  "email_verified_success": "Email confirmat! Bine ai venit!",
+  "already_verified": "Contul este deja verificat.",
+  "register_verify_email":
+      "Cont creat! Verifică email-ul pentru codul de confirmare.",
+  "error_invalid_credentials": "Date de autentificare incorecte",
+  "error_register": "Eroare la înregistrare",
+  'backend_unauthenticated': 'Neautentificat',
+  'backend_unauthorized': 'Acces neautorizat',
+  'backend_access_denied': 'Acces interzis',
+  'backend_access_denied_role': 'Acces interzis. Rol insuficient.',
+  'backend_only_patients_generate_code': 'Doar pacienții pot genera coduri de acces',
+  'backend_only_companions_redeem_code':
+      'Doar însoțitorii pot folosi coduri de acces',
+  'backend_invalid_or_expired_code':
+      'Cod invalid sau expirat. Cere pacientului un cod nou.',
+  'backend_code_patient_missing': 'Pacientul asociat codului nu mai există',
+  'backend_association_success':
+      'Asociere reușită! Poți acum vizualiza documentele pacientului.',
+  'backend_only_patients_send_invites': 'Doar pacienții pot trimite invitații',
+  'backend_only_companions_accept_invites':
+      'Doar însoțitorii pot accepta invitații',
+  'backend_invalid_or_expired_invite': 'Link de invitație invalid sau expirat.',
+  'backend_invite_patient_missing':
+      'Pacientul asociat invitației nu mai există',
+  'backend_invite_accepted_success':
+      'Invitație acceptată! Poți acum vizualiza documentele pacientului.',
+  'backend_companion_unlinked': 'Însoțitor deconectat',
+  'backend_patient_link_removed': 'Relație cu pacientul eliminată',
+  'backend_selected_id_not_patient': 'ID-ul specificat nu apartine unui pacient',
+  'backend_document_deleted': 'Document sters',
+  'backend_hospital_deleted': 'Spitalul a fost sters',
+  'backend_cannot_delete_self':
+      'Nu poti sterge propriul cont din aceasta interfata',
+  'backend_user_deleted': 'Utilizatorul a fost sters',
+  'backend_selected_user_not_patient': 'Utilizatorul selectat nu este pacient',
+  'backend_selected_user_not_companion':
+      'Utilizatorul selectat nu este insotitor',
+  'backend_companion_linked': 'Insotitor legat cu succes',
+  'backend_invalid_api_key': 'API key invalid',
+  'backend_cnp_not_identified':
+      'CNP-ul pacientului nu a putut fi identificat. Introduceți cnp_pacient explicit în payload sau includeți CNP-ul în numele fișierului / textul PDF.',
+  'backend_document_ingested': 'Document ingerat cu succes',
+  'backend_server_returned': 'Serverul a returnat',
+  'ingest_pending': 'În așteptare',
+  'ingest_source_explicit': 'câmp explicit',
+  'ingest_source_filename': 'nume fișier',
+  'ingest_source_pdf_text': 'text PDF',
+  'ingest_cnp_from': 'CNP din',
+  'ingest_new_patient': 'pacient nou',
+  'ingest_existing_patient': 'pacient existent',
 };

@@ -40,9 +40,9 @@ class ChatController extends Controller
     }
 
     /**
-     * Counts ALL messages after last_seen_at, regardless of sender.
-     * If last_seen_at is NULL (never opened) → all messages are unread.
-     * If last_seen_at is provided but there are NO messages yet → returns 0.
+     * Counts all messages after last_seen_at.
+     * NULL last_seen_at → user has never opened this conversation → all
+     * existing messages count as unread (consistent across all roles).
      */
     private function unreadCount(int $userId, int $patientId): int
     {
@@ -52,14 +52,12 @@ class ChatController extends Controller
 
     private function unreadCountFromTimestamp(int $patientId, ?\Carbon\Carbon $lastSeen): int
     {
-        // KEY FIX: if never opened, only count messages that actually EXIST.
-        // Do NOT return "all messages" blindly — return the real count.
         $query = ChatMessage::where('patient_id', $patientId);
 
         if ($lastSeen) {
             $query->where('created_at', '>', $lastSeen);
         }
-        // null lastSeen → counts everything (correct: never seen this conversation)
+        // null lastSeen → counts ALL messages (user has never opened this conversation)
 
         return $query->count();
     }
@@ -67,15 +65,15 @@ class ChatController extends Controller
     private function markSeen(int $userId, int $patientId): void
     {
         DB::table('conversation_last_seen')->updateOrInsert(
-            // match condition
             [
                 'user_id'    => $userId,
                 'patient_id' => $patientId,
             ],
-            // value to write — +1 second so the current batch of messages
-            // falls safely behind the cursor and won't re-appear as unread
             [
-                'last_seen_at' => now()->addSecond(),
+                // Use now() exactly — no +1s offset.
+                // Messages are fetched first, then markSeen is called,
+                // so this cursor correctly lands after the last fetched message.
+                'last_seen_at' => now(),
             ]
         );
     }
@@ -95,7 +93,7 @@ class ChatController extends Controller
             // Single query for all last_seen timestamps — no N+1
             $lastSeenMap = $this->getLastSeenBulk($user->id, $patientIds);
 
-            // Single query for all unread counts grouped by patient
+            // Single query for all message counts + latest timestamps grouped by patient
             $unreadMap = ChatMessage::whereIn('patient_id', $patientIds)
                 ->selectRaw('patient_id, COUNT(*) as cnt, MAX(created_at) as latest')
                 ->groupBy('patient_id')
@@ -106,21 +104,17 @@ class ChatController extends Controller
                 ->with('hospital')
                 ->get()
                 ->map(function ($patient) use ($user, $lastSeenMap, $unreadMap) {
-                    $lastMsg = ChatMessage::where('patient_id', $patient->id)
+                    $lastMsg  = ChatMessage::where('patient_id', $patient->id)
                         ->orderBy('created_at', 'desc')
                         ->first();
 
-                    $total      = $unreadMap[$patient->id]->cnt ?? 0;
-                    $lastSeen   = $lastSeenMap[$patient->id] ?? null;
+                    $total    = $unreadMap[$patient->id]->cnt ?? 0;
+                    $lastSeen = $lastSeenMap[$patient->id] ?? null;
 
-                    // For a doctor who has NEVER opened a conversation,
-                    // unread = 0 (not "every message ever"). They didn't miss
-                    // anything — the conversation existed before their account.
-                    // Only count as unread messages sent AFTER they first logged in,
-                    // approximated as: if never seen → unread = 0.
-                    $unread = $lastSeen === null
-                        ? 0
-                        : $this->unreadCountFromTimestamp($patient->id, $lastSeen);
+                    // Consistent with all other roles:
+                    // null lastSeen → never opened → count ALL messages as unread.
+                    // This ensures doctors see accurate unread counts from the start.
+                    $unread = $this->unreadCountFromTimestamp($patient->id, $lastSeen);
 
                     return [
                         'patient_id'   => $patient->id,
@@ -167,7 +161,7 @@ class ChatController extends Controller
                 $patient = User::find($patientId);
                 if (!$patient) continue;
 
-                $lastMsg = ChatMessage::where('patient_id', $patientId)
+                $lastMsg  = ChatMessage::where('patient_id', $patientId)
                     ->orderBy('created_at', 'desc')
                     ->first();
 
@@ -210,8 +204,7 @@ class ChatController extends Controller
             ->get()
             ->map(fn($m) => $this->formatMessage($m));
 
-        // Always stamp seen AFTER fetching — so the cursor lands past
-        // all messages just returned, preventing them re-appearing as unread
+        // Always stamp seen AFTER fetching — cursor lands past all returned messages
         $this->markSeen($user->id, $patientId);
 
         return response(['messages' => $messages], 200);
@@ -250,7 +243,7 @@ class ChatController extends Controller
             'message'     => $request->input('message'),
         ]);
 
-        // Sending = seeing, so your own message never counts against you
+        // Sending = seeing: your own message never counts against you
         $this->markSeen($user->id, $patientId);
 
         return response(['message' => $this->formatMessage($msg)], 201);

@@ -7,7 +7,12 @@ import '../services/access_code_service.dart';
 import '../i18n/translations.dart';
 
 class RedeemAccessCodeScreen extends StatefulWidget {
-  const RedeemAccessCodeScreen({super.key});
+  final String? initialToken;
+
+  const RedeemAccessCodeScreen({
+    super.key,
+    this.initialToken,
+  });
 
   @override
   State<RedeemAccessCodeScreen> createState() => _RedeemAccessCodeScreenState();
@@ -37,7 +42,13 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
   @override
   void initState() {
     super.initState();
+
     _tabs = TabController(length: 2, vsync: this);
+
+    if (widget.initialToken != null) {
+      _tokenCtrl.text = widget.initialToken!;
+      _tabs.index = 1; // tab token
+    }
   }
 
   @override
@@ -78,8 +89,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.pop(context, true);
     } else {
-      setState(
-          () => _codeError = result['message'] ?? l10n.get('code_invalid'));
+      setState(() => _codeError =
+          l10n.get((result['message'] ?? 'code_invalid').toString()));
     }
   }
 
@@ -112,8 +123,8 @@ class _RedeemAccessCodeScreenState extends State<RedeemAccessCodeScreen>
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.pop(context, true);
     } else {
-      setState(
-          () => _tokenError = result['message'] ?? l10n.get('token_invalid'));
+      setState(() => _tokenError =
+          l10n.get((result['message'] ?? 'token_invalid').toString()));
     }
   }
 

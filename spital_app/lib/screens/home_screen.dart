@@ -4,6 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:app_links/app_links.dart';
+import 'dart:async';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
@@ -35,7 +37,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _inlineError;
   final Set<int> _deletingIds = {};
 
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription? _linkSub;
+  Timer? _unreadTimer;
+
   String _tr(String key) => AppLocalizations.of(context).get(key);
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'global_admin':
+        return _tr('role_global_admin');
+      case 'hospital_admin':
+        return _tr('role_hospital_admin');
+      case 'doctor':
+        return _tr('role_doctor');
+      case 'patient':
+        return _tr('role_patient');
+      case 'companion':
+        return _tr('role_companion');
+      default:
+        return role;
+    }
+  }
 
   @override
   void initState() {
@@ -43,10 +65,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _fetchDocuments();
     _fetchUnread();
+
+    _initDeepLinks();
+    _startUnreadPolling();
+  }
+
+  Uri? _initialUri;
+
+  void _initDeepLinks() async {
+    final initialUri = await _appLinks.getInitialLink();
+
+    if (initialUri != null) {
+      _handleDeepLink(initialUri.toString());
+    }
+
+    _linkSub = _appLinks.uriLinkStream.listen((Uri? uri) {
+      if (uri != null) {
+        _handleDeepLink(uri.toString());
+      }
+    });
+  }
+
+  void _handleDeepLink(String link) {
+    final uri = Uri.parse(link);
+
+    if (uri.pathSegments.contains('invite')) {
+      final token = uri.pathSegments.last;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RedeemAccessCodeScreen(
+            initialToken: token,
+          ),
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
+    _linkSub?.cancel();
+    _unreadTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -72,13 +132,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _fetchUnread() async {
     final convs = await _chatService.getConversations();
-    if (mounted) {
-      int total = 0;
-      for (final c in convs) {
-        total += (c['unread_count'] ?? 0) as int;
-      }
-      setState(() => _unreadMessages = total);
+    if (!mounted) return;
+
+    int total = 0;
+    for (final c in convs) {
+      total += _asInt(c['unread_count']);
     }
+
+    setState(() {
+      _unreadMessages = total;
+    });
+  }
+
+  int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '0') ?? 0;
+  }
+
+  void _startUnreadPolling() {
+    _unreadTimer?.cancel();
+    _unreadTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (!mounted) return;
+      _fetchUnread();
+    });
   }
 
   Future<void> _uploadPdf() async {
@@ -98,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _showSnack(_tr('upload_success'));
       await _fetchDocuments();
     } else {
-      _setInlineError(response['message'] ?? _tr('connection_error'));
+      _setInlineError(_tr((response['message'] ?? 'connection_error').toString()));
     }
   }
 
@@ -344,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Text(u.name,
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          Text(_tr(u.role),
+          Text(_roleLabel(u.role),
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [
@@ -383,12 +460,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   right: 6,
                   top: 6,
                   child: Container(
-                    width: 16,
-                    height: 16,
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
                     decoration: const BoxDecoration(
                         color: Colors.red, shape: BoxShape.circle),
                     alignment: Alignment.center,
-                    child: Text('$_unreadMessages',
+                    child: Text(_unreadMessages > 99 ? '99+' : '$_unreadMessages',
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
@@ -429,7 +507,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => MyCompanionsScreen(user: u)));
+                      builder: (_) => MyCompanionsScreen(user: u))).then((_) {
+                _fetchUnread();
+              });
             },
           ),
         ],
@@ -444,14 +524,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => MyCompanionsScreen(user: u)));
+                      builder: (_) => MyCompanionsScreen(user: u))).then((_) {
+                _fetchUnread();
+              });
             },
           ),
         ],
         if (_inlineError != null) _inlineErrorBanner(_inlineError!),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _fetchDocuments,
+            onRefresh: () async {
+              await _fetchDocuments();
+              await _fetchUnread();
+            },
             color: const Color(0xFF1A5276),
             child: _loadingDocs
                 ? const Center(
@@ -631,7 +716,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final doc = _documents[i];
           return _SwipeToDeleteDocCard(
             doc: doc,
-            canDelete: u.isPatient,
+            canDelete: false,
             patientPrefix: _tr('patient_prefix'),
             deleteTitle: _tr('delete_document_title'),
             deleteConfirm: _tr('delete_confirm'),

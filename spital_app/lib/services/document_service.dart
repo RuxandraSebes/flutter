@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../i18n/backend_message_mapper.dart';
 
 class DocumentService {
   static const String baseUrl = AuthService.baseUrl;
@@ -60,9 +61,12 @@ class DocumentService {
       if (response.statusCode == 201) {
         return {'success': true, 'document': data['document']};
       }
-      return {'success': false, 'message': data['message'] ?? 'Upload eșuat'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'upload_error')
+      };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 

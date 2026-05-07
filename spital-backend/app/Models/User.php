@@ -35,6 +35,9 @@ class User extends Authenticatable
         'specialization',
         'license_number',
         'is_active',
+        'email_verification_token',
+'email_verification_token_expires_at',
+'email_verified_at',
     ];
 
     protected $hidden = [
@@ -46,6 +49,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password'          => 'hashed',
         'is_active'         => 'boolean',
+        'email_verified_at'                   => 'datetime',
+'email_verification_token_expires_at' => 'datetime',
     ];
 
     // ── Role helpers ─────────────────────────────────────────────────────────

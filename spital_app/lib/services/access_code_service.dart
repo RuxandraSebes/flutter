@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../i18n/backend_message_mapper.dart';
 
 class AccessCodeService {
   static const String _base = AuthService.baseUrl;
@@ -34,9 +35,12 @@ class AccessCodeService {
           'expires_in': data['expires_in'] ?? 300,
         };
       }
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (_) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -51,13 +55,16 @@ class AccessCodeService {
       if (r.statusCode == 200) {
         return {
           'success': true,
-          'message': data['message'],
+          'message': backendMessageKey(data['message']),
           'patient': data['patient'],
         };
       }
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (_) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -74,14 +81,17 @@ class AccessCodeService {
       if (r.statusCode == 200) {
         return {
           'success': true,
-          'message': data['message'],
+          'message': backendMessageKey(data['message']),
           'invite_token': data['invite_token'],
           'mail_sent': data['mail_sent'] ?? false,
         };
       }
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (_) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -96,13 +106,16 @@ class AccessCodeService {
       if (r.statusCode == 200) {
         return {
           'success': true,
-          'message': data['message'],
+          'message': backendMessageKey(data['message']),
           'patient': data['patient'],
         };
       }
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (_) {
-      return {'success': false, 'message': 'Nu se poate conecta la server'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 

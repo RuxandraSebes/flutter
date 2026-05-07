@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
+import '../i18n/backend_message_mapper.dart';
 
 class AuthService {
   static const String baseUrl = "http://192.168.0.51:8000/api";
@@ -82,11 +83,16 @@ class AuthService {
         return {'success': true, 'user': UserModel.fromJson(data['user'])};
       }
 
-      return {'success': false, 'message': 'Date de autentificare invalide'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error_invalid_credentials')
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Eroare de conexiune'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
+
+  // ── Register ───────────────────────────────────────────────────────────────
 
   // ── Register ───────────────────────────────────────────────────────────────
 
@@ -119,19 +125,80 @@ class AuthService {
       final data = json.decode(response.body);
 
       if (response.statusCode == 201) {
-        await _storage.write(key: _tokenKey, value: data['token']);
-        await _saveUser(data['user']);
-        return {'success': true, 'user': UserModel.fromJson(data['user'])};
+        // No token yet — user must verify email first
+        return {
+          'success': true,
+          'user_id': data['user_id'] as int,
+          'email': data['email'] as String,
+          'needs_verification': data['needs_verification'] ?? false,
+        };
       }
 
-      String message = data['message'] ?? 'Eroare la înregistrare';
+      String message = data['message'] ?? 'error_register';
       if (data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
         message = (errors.values.first as List).first.toString();
+      } else {
+        message = backendMessageKey(message);
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': 'Eroare de conexiune'};
+      return {'success': false, 'message': 'connection_error'};
+    }
+  }
+
+// ── Verify email (6-digit code) ────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> verifyEmail({
+    required int userId,
+    required String code,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/verify-email'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'user_id': userId, 'code': code}),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        await _storage.write(key: _tokenKey, value: data['token'] as String);
+        await _saveUser(data['user'] as Map<String, dynamic>);
+        return {'success': true, 'user': UserModel.fromJson(data['user'])};
+      }
+
+      return {'success': false, 'message': data['message'] ?? 'error'};
+    } catch (e) {
+      return {'success': false, 'message': 'connection_error'};
+    }
+  }
+
+// ── Resend verification code ───────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> resendVerification({
+    required int userId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/resend-verification'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'user_id': userId}),
+      );
+
+      final data = json.decode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'error',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -157,10 +224,10 @@ class AuthService {
       }
       return {
         'success': false,
-        'message': data['message'] ?? 'Eroare la actualizarea profilului'
+        'message': backendMessageKey(data['message'] ?? 'update_error')
       };
     } catch (e) {
-      return {'success': false, 'message': 'Eroare de conexiune'};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 

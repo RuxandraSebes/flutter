@@ -104,6 +104,7 @@ class LanguageDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     // Registering as a dependent of _LocaleInherited is what makes this
     // widget rebuild when the locale changes.
     final currentLocale = context
@@ -122,7 +123,7 @@ class LanguageDropdown extends StatelessWidget {
     final provider = LanguageProvider.of(context);
 
     return PopupMenuButton<String>(
-      tooltip: 'Language / Limbă',
+      tooltip: t.get('language'),
       offset: const Offset(0, 48),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       elevation: 6,
@@ -174,6 +175,7 @@ class LanguageSelectorDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final provider = LanguageProvider.of(context);
     final currentCode = context
             .dependOnInheritedWidgetOfExactType<_LocaleInherited>()
@@ -183,13 +185,13 @@ class LanguageSelectorDialog extends StatelessWidget {
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(
+      title: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.language, color: Color(0xFF1A5276)),
-          SizedBox(width: 8),
-          Text('Limbă / Language',
-              style: TextStyle(
+          const Icon(Icons.language, color: Color(0xFF1A5276)),
+          const SizedBox(width: 8),
+          Text(t.get('language'),
+              style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1A5276))),
@@ -212,7 +214,7 @@ class LanguageSelectorDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Anulează / Cancel'),
+          child: Text(t.get('cancel')),
         ),
       ],
     );
@@ -274,9 +276,10 @@ class LanguageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return IconButton(
       icon: const Icon(Icons.language),
-      tooltip: 'Language / Limbă',
+      tooltip: t.get('language'),
       onPressed: () => showDialog(
         context: context,
         builder: (_) => const LanguageSelectorDialog(),

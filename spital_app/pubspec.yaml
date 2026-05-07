@@ -12,6 +12,7 @@ dependencies:
   flutter_svg: ^2.0.10+1
   flutter:
     sdk: flutter
+  app_links: ^6.0.0
 
   # Networking
   http: ^1.2.0

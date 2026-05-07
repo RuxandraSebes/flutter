@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../i18n/backend_message_mapper.dart';
 
 /// Handles all admin API calls:
 ///   - Hospital CRUD  (global_admin only)
@@ -48,9 +49,12 @@ class AdminService {
       final data = json.decode(r.body);
       if (r.statusCode == 201)
         return {'success': true, 'hospital': data['hospital']};
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -65,9 +69,12 @@ class AdminService {
       final data = json.decode(r.body);
       if (r.statusCode == 200)
         return {'success': true, 'hospital': data['hospital']};
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -109,14 +116,16 @@ class AdminService {
       );
       final data = json.decode(r.body);
       if (r.statusCode == 201) return {'success': true, 'user': data['user']};
-      String msg = data['message'] ?? 'Eroare';
+      String msg = data['message'] ?? 'error';
       if (data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
         msg = (errors.values.first as List).first.toString();
+      } else {
+        msg = backendMessageKey(msg);
       }
       return {'success': false, 'message': msg};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -130,9 +139,12 @@ class AdminService {
       );
       final data = json.decode(r.body);
       if (r.statusCode == 200) return {'success': true, 'user': data['user']};
-      return {'success': false, 'message': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'message': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -169,10 +181,13 @@ class AdminService {
       );
       final data = json.decode(r.body);
       return r.statusCode == 200
-          ? {'success': true, 'message': data['message']}
-          : {'success': false, 'message': data['message'] ?? 'Eroare'};
+          ? {'success': true, 'message': backendMessageKey(data['message'])}
+          : {
+              'success': false,
+              'message': backendMessageKey(data['message'] ?? 'error')
+            };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 
@@ -191,10 +206,13 @@ class AdminService {
       );
       final data = json.decode(r.body);
       return r.statusCode == 200
-          ? {'success': true, 'message': data['message']}
-          : {'success': false, 'message': data['message'] ?? 'Eroare'};
+          ? {'success': true, 'message': backendMessageKey(data['message'])}
+          : {
+              'success': false,
+              'message': backendMessageKey(data['message'] ?? 'error')
+            };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': 'connection_error'};
     }
   }
 }

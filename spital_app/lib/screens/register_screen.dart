@@ -10,6 +10,7 @@ import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import '../main.dart';
 import '../i18n/language_provider.dart';
+import 'email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String? preselectedRole;
@@ -159,13 +160,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      final user = result['user'] as UserModel;
-      Navigator.pushAndRemoveUntil(context,
-          MaterialPageRoute(builder: (_) => roleBasedHome(user)), (_) => false);
-    } else {
-      // result['message'] may be an i18n key or a raw server message
-      final rawKey = result['message'] as String? ?? 'connection_error';
-      _setError(_tr(rawKey));
+      // Was: navigate home. Now: go to verification screen
+      if (result['needs_verification'] == true) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(
+              userId: result['user_id'] as int,
+              email: result['email'] as String,
+            ),
+          ),
+        );
+      } else {
+        // Non-patient/companion roles go straight home (shouldn't happen from this screen)
+        final user = result['user'] as UserModel;
+        Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => roleBasedHome(user)),
+            (_) => false);
+      }
     }
   }
 

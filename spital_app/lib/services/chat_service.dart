@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../i18n/backend_message_mapper.dart';
 
 class ChatService {
   static const String _base = AuthService.baseUrl;
@@ -72,11 +73,14 @@ class ChatService {
       );
       final data = json.decode(r.body);
       if (r.statusCode == 201) {
-        return {'success': true, 'message': data['message']};
+        return {'success': true, 'message': backendMessageKey(data['message'])};
       }
-      return {'success': false, 'error': data['message'] ?? 'Eroare'};
+      return {
+        'success': false,
+        'error': backendMessageKey(data['message'] ?? 'error')
+      };
     } catch (_) {
-      return {'success': false, 'error': 'Nu se poate conecta la server'};
+      return {'success': false, 'error': 'connection_error'};
     }
   }
 }

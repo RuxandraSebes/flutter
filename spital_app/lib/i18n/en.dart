@@ -341,4 +341,48 @@ const Map<String, String> translationsEn = {
   'error': 'Error',
   'error_invalid_credentials': 'Invalid credentials',
   'error_register': 'Error registering',
+  'backend_unauthenticated': 'Unauthenticated',
+  'backend_unauthorized': 'Unauthorized access',
+  'backend_access_denied': 'Access denied',
+  'backend_access_denied_role': 'Access denied. Insufficient role.',
+  'backend_only_patients_generate_code':
+      'Only patients can generate access codes',
+  'backend_only_companions_redeem_code':
+      'Only companions can redeem access codes',
+  'backend_invalid_or_expired_code':
+      'Invalid or expired code. Ask the patient for a new one.',
+  'backend_code_patient_missing': 'The patient linked to this code no longer exists',
+  'backend_association_success':
+      'Linked successfully. You can now view the patient documents.',
+  'backend_only_patients_send_invites':
+      'Only patients can send invitations',
+  'backend_only_companions_accept_invites':
+      'Only companions can accept invitations',
+  'backend_invalid_or_expired_invite': 'Invalid or expired invitation link',
+  'backend_invite_patient_missing':
+      'The patient linked to this invitation no longer exists',
+  'backend_invite_accepted_success':
+      'Invitation accepted. You can now view the patient documents.',
+  'backend_companion_unlinked': 'Companion unlinked',
+  'backend_patient_link_removed': 'Patient relationship removed',
+  'backend_selected_id_not_patient': 'The selected ID does not belong to a patient',
+  'backend_document_deleted': 'Document deleted',
+  'backend_hospital_deleted': 'Hospital deleted',
+  'backend_cannot_delete_self': 'You cannot delete your own account from this screen',
+  'backend_user_deleted': 'User deleted',
+  'backend_selected_user_not_patient': 'Selected user is not a patient',
+  'backend_selected_user_not_companion': 'Selected user is not a companion',
+  'backend_companion_linked': 'Companion linked successfully',
+  'backend_invalid_api_key': 'Invalid API key',
+  'backend_cnp_not_identified':
+      'Patient CNP could not be identified. Provide cnp_pacient explicitly or include it in filename/PDF text.',
+  'backend_document_ingested': 'Document ingested successfully',
+  'backend_server_returned': 'Server returned',
+  'ingest_pending': 'Pending',
+  'ingest_source_explicit': 'explicit field',
+  'ingest_source_filename': 'filename',
+  'ingest_source_pdf_text': 'PDF text',
+  'ingest_cnp_from': 'CNP from',
+  'ingest_new_patient': 'new patient',
+  'ingest_existing_patient': 'existing patient',
 };

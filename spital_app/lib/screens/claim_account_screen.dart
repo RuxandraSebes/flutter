@@ -71,7 +71,8 @@ class _ClaimAccountScreenState extends State<ClaimAccountScreen> {
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) Navigator.pop(context, true);
     } else {
-      _snack(result['message'] ?? l.get('update_error'), isError: true);
+      _snack(l.get((result['message'] ?? 'update_error').toString()),
+          isError: true);
     }
   }
 

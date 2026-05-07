@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../models/user_model.dart';
-import '../i18n/language_provider.dart'; // Import necesar
+import '../i18n/language_provider.dart';
 import 'chat_screen.dart';
 
 class ChatConversationsScreen extends StatefulWidget {
   final UserModel currentUser;
+  final Function(int)? onUnreadChanged;
 
-  const ChatConversationsScreen({super.key, required this.currentUser});
+  const ChatConversationsScreen({
+    super.key,
+    required this.currentUser,
+    this.onUnreadChanged,
+  });
 
   @override
   State<ChatConversationsScreen> createState() =>
@@ -19,7 +24,10 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
   List<Map<String, dynamic>> _conversations = [];
   bool _loading = true;
 
-  // Metodă helper pentru traduceri
+  // Total unread across ALL conversations — used for a summary badge in the AppBar
+  int get _totalUnread => _conversations.fold(
+      0, (sum, c) => sum + ((c['unread_count'] ?? 0) as int));
+
   String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   @override
@@ -36,6 +44,7 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
         _conversations = list;
         _loading = false;
       });
+      widget.onUnreadChanged?.call(_totalUnread);
     }
   }
 
@@ -46,8 +55,34 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: Text(_tr('chat_title'),
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _tr('chat_title'),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            // Global unread badge next to the title
+            if (_totalUnread > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$_totalUnread',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
@@ -159,10 +194,11 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen> {
                             );
 
                             if (!mounted) return;
-                            // Add a small delay so the backend's markSeen (called during
-                            // dispose's getMessages) has time to commit before we reload
+                            // Wait long enough for the backend markSeen (called inside
+                            // getMessages) to commit before we reload the unread counts.
+                            // 600ms is safe even on slow connections; the user won't notice.
                             await Future.delayed(
-                                const Duration(milliseconds: 300));
+                                const Duration(milliseconds: 600));
                             await _load();
                           },
                         ),

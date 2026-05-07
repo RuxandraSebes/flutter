@@ -87,7 +87,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
       _snack(_tr('hospital_added'));
       _loadHospitals();
     } else
-      _snack(r['message'], isError: true);
+      _snack(_tr((r['message'] ?? 'error').toString()), isError: true);
   }
 
   Future<void> _editHospital(Map<String, dynamic> h) async {
@@ -99,7 +99,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
       _snack(_tr('hospital_updated'));
       _loadHospitals();
     } else
-      _snack(r['message'], isError: true);
+      _snack(_tr((r['message'] ?? 'error').toString()), isError: true);
   }
 
   Future<void> _deleteHospital(Map<String, dynamic> h) async {
@@ -127,7 +127,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
       _snack(_tr('user_created'));
       _loadUsers();
     } else
-      _snack(r['message'], isError: true);
+      _snack(_tr((r['message'] ?? 'error').toString()), isError: true);
   }
 
   Future<void> _editUser(Map<String, dynamic> u) async {
@@ -140,7 +140,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
       _snack(_tr('user_updated'));
       _loadUsers();
     } else
-      _snack(r['message'], isError: true);
+      _snack(_tr((r['message'] ?? 'error').toString()), isError: true);
   }
 
   Future<void> _deleteUser(Map<String, dynamic> u) async {
@@ -189,7 +189,7 @@ class _GlobalAdminScreenState extends State<GlobalAdminScreen>
           Text(_tr('global_admin_panel'),
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               overflow: TextOverflow.ellipsis),
-          Text(widget.user.name,
+          Text('${widget.user.name} · ${_tr('role_global_admin')}',
               style: const TextStyle(fontSize: 12, color: Colors.white70),
               overflow: TextOverflow.ellipsis),
         ]),

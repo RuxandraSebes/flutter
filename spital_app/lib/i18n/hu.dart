@@ -33,8 +33,8 @@ const Map<String, String> translationsHu = {
   'associate_patient': 'Csatolás beteghez',
   'enter_code_desc': 'Add meg a beteg által küldött kódot',
   'messages': 'Üzenetek',
-  'my_companions': 'Kísérőim',
-  'my_patients': 'Betegeim',
+  'my_patients': 'Betegeim kezelése',
+  'my_companions': 'Kísérőim kezelése',
 
   // Documents
   'delete_document': 'Dokumentum törlése',
@@ -348,4 +348,64 @@ const Map<String, String> translationsHu = {
   'link': 'Csatolás',
   'linked_success': 'Kísérő sikeresen csatolva',
   'missing_companions': 'Hiányzó betegek vagy kísérők a rendszerben',
+  "verify_email_title": "E-mail cím megerősítése",
+  "verify_email_sent_to": "Egy 6 számjegyű kódot küldtünk erre a címre:",
+  "verify_button": "Fiók megerősítése",
+  "resend_code": "Kód újraküldése",
+  "enter_full_code": "Írd be mind a 6 számjegyet",
+  "error_invalid_or_expired_code": "Hibás vagy lejárt kód. Próbáld újra.",
+  "error_email_not_verified":
+      "A fiók nincs megerősítve. Ellenőrizd az e-mailt.",
+  "verification_code_resent": "Új kódot küldtünk e-mailben.",
+  "email_verified_success": "E-mail megerősítve! Üdvözlünk!",
+  "already_verified": "A fiók már meg van erősítve.",
+  "register_verify_email":
+      "Fiók létrehozva! Ellenőrizd az e-mailt a megerősítő kódért.",
+  "error_invalid_credentials": "Hibás bejelentkezési adatok",
+  "error_register": "Sikertelen regisztráció",
+  'backend_unauthenticated': 'Unauthenticated',
+  'backend_unauthorized': 'Unauthorized access',
+  'backend_access_denied': 'Access denied',
+  'backend_access_denied_role': 'Access denied. Insufficient role.',
+  'backend_only_patients_generate_code':
+      'Only patients can generate access codes',
+  'backend_only_companions_redeem_code':
+      'Only companions can redeem access codes',
+  'backend_invalid_or_expired_code':
+      'Invalid or expired code. Ask the patient for a new one.',
+  'backend_code_patient_missing':
+      'The patient linked to this code no longer exists',
+  'backend_association_success':
+      'Linked successfully. You can now view the patient documents.',
+  'backend_only_patients_send_invites': 'Only patients can send invitations',
+  'backend_only_companions_accept_invites':
+      'Only companions can accept invitations',
+  'backend_invalid_or_expired_invite': 'Invalid or expired invitation link',
+  'backend_invite_patient_missing':
+      'The patient linked to this invitation no longer exists',
+  'backend_invite_accepted_success':
+      'Invitation accepted. You can now view the patient documents.',
+  'backend_companion_unlinked': 'Companion unlinked',
+  'backend_patient_link_removed': 'Patient relationship removed',
+  'backend_selected_id_not_patient':
+      'The selected ID does not belong to a patient',
+  'backend_document_deleted': 'Document deleted',
+  'backend_hospital_deleted': 'Hospital deleted',
+  'backend_cannot_delete_self': 'You cannot delete your own account from this screen',
+  'backend_user_deleted': 'User deleted',
+  'backend_selected_user_not_patient': 'Selected user is not a patient',
+  'backend_selected_user_not_companion': 'Selected user is not a companion',
+  'backend_companion_linked': 'Companion linked successfully',
+  'backend_invalid_api_key': 'Invalid API key',
+  'backend_cnp_not_identified':
+      'Patient CNP could not be identified. Provide cnp_pacient explicitly or include it in filename/PDF text.',
+  'backend_document_ingested': 'Document ingested successfully',
+  'backend_server_returned': 'Server returned',
+  'ingest_pending': 'Pending',
+  'ingest_source_explicit': 'explicit field',
+  'ingest_source_filename': 'filename',
+  'ingest_source_pdf_text': 'PDF text',
+  'ingest_cnp_from': 'CNP from',
+  'ingest_new_patient': 'new patient',
+  'ingest_existing_patient': 'existing patient',
 };

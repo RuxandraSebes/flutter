@@ -92,7 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Center(
-          child: Text(result['error'] ?? l.get('send_error'),
+          child: Text(l.get((result['error'] ?? 'send_error').toString()),
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center),

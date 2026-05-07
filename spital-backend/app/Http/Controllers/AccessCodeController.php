@@ -344,19 +344,18 @@ class AccessCodeController extends Controller
                 <strong>Spital Vișeu UPU</strong>.
               </p>
 
-              <!-- REQ-8: Primary deep-link button — opens app if installed -->
-              <!-- <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:8px 0 16px;">
-                    <a href="{$appDeepLink}"
-                       style="background:#1A5276;color:#ffffff;text-decoration:none;
-                              padding:16px 40px;border-radius:12px;font-size:16px;
-                              font-weight:700;display:inline-block;">
-                      ✓ &nbsp;Acceptă invitația în aplicație
-                    </a>
-                  </td>
-                </tr>
-              </table> -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center" style="padding:8px 0 16px;">
+      <a href="{$appDeepLink}"
+         style="background:#1A5276;color:#ffffff;text-decoration:none;
+                padding:16px 40px;border-radius:12px;font-size:16px;
+                font-weight:700;display:inline-block;">
+        ✓ Acceptă invitația în aplicație
+      </a>
+    </td>
+  </tr>
+</table>
 
               <!-- REQ-8: Fallback link for users without the app -->
               <p style="color:#888;font-size:13px;text-align:center;margin:0 0 12px;">

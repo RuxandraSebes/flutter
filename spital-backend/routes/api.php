@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Route;
 // ── Public routes ─────────────────────────────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
+  Route::post('/auth/verify-email', [AuthController::class, 'verifyEmail']);
+Route::post('/auth/resend-verification', [AuthController::class, 'resendVerification']);
+
 
 // Public hospital list — needed for the Register screen hospital picker
 Route::get('/hospitals/public', function () {
@@ -85,5 +88,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // REQ-13: relationship field removed from link (handled in controller)
         Route::post('/companions/link',   [AdminController::class, 'linkCompanion']);
         Route::post('/companions/unlink', [AdminController::class, 'unlinkCompanion']);
-    });
+    
+          });
 });

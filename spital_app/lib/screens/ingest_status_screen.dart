@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
+import '../i18n/translations.dart';
 
 /// Shows the PDF ingestion status — useful for hospital admins and doctors
 /// to verify that Hipocrate reports are being picked up correctly.
@@ -15,6 +16,8 @@ class IngestStatusScreen extends StatefulWidget {
 }
 
 class _IngestStatusScreenState extends State<IngestStatusScreen> {
+  String _tr(String key) => AppLocalizations.of(context).get(key);
+
   bool _loading = true;
   Map<String, dynamic>? _status;
   String? _error;
@@ -42,13 +45,13 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
         });
       } else {
         setState(() {
-          _error = 'Server a returnat ${response.statusCode}';
+          _error = '${_tr('backend_server_returned')} ${response.statusCode}';
           _loading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = 'Nu se poate conecta: $e';
+        _error = '${_tr('connection_error')}: $e';
         _loading = false;
       });
     }
@@ -61,11 +64,11 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A5276),
         foregroundColor: Colors.white,
-        title: const Text('Status Ingestie Hipocrate'),
+        title: Text(_tr('hipocrate_ingest_status')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reîncarcă',
+            tooltip: _tr('refresh'),
             onPressed: _load,
           ),
         ],
@@ -90,7 +93,7 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
           ElevatedButton.icon(
             onPressed: _load,
             icon: const Icon(Icons.refresh),
-            label: const Text('Reîncearcă'),
+            label: Text(_tr('retry')),
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A5276),
                 foregroundColor: Colors.white),
@@ -111,7 +114,7 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
           // ── Summary cards ─────────────────────────────────────────────────
           Row(children: [
             _statCard(
-              label: 'În așteptare',
+              label: _tr('ingest_pending'),
               value: '${s['pending_files'] ?? 0}',
               icon: Icons.hourglass_empty_outlined,
               color:
@@ -119,14 +122,14 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
             ),
             const SizedBox(width: 12),
             _statCard(
-              label: 'Documente',
+              label: _tr('documents_tab'),
               value: '${s['total_documents'] ?? 0}',
               icon: Icons.description_outlined,
               color: const Color(0xFF1A5276),
             ),
             const SizedBox(width: 12),
             _statCard(
-              label: 'Pacienți',
+              label: _tr('patients_tab'),
               value: '${s['total_patients'] ?? 0}',
               icon: Icons.people_outline,
               color: const Color(0xFF1A5276),
@@ -142,8 +145,9 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
             child: ListTile(
               leading:
                   const Icon(Icons.folder_outlined, color: Color(0xFF1A5276)),
-              title: const Text('Director monitorizat',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              title: Text(_tr('monitored_directory'),
+                  style:
+                      const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
               subtitle: Text(
                 s['watch_dir'] ?? '—',
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
@@ -154,8 +158,8 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
           const SizedBox(height: 20),
 
           // ── Recent ingestions ─────────────────────────────────────────────
-          const Text('Ingestii recente',
-              style: TextStyle(
+          Text(_tr('recent_ingestions'),
+              style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1A5276))),
@@ -168,8 +172,8 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
               child: const Padding(
                 padding: EdgeInsets.all(20),
                 child: Center(
-                    child: Text('Nicio ingestie înregistrată',
-                        style: TextStyle(color: Colors.grey))),
+                    child: Text(_tr('no_ingestions'),
+                        style: const TextStyle(color: Colors.grey))),
               ),
             )
           else
@@ -212,11 +216,11 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
 
     final source = log['cnp_source'];
     final sourceLabel = source == 'explicit'
-        ? 'câmp explicit'
+        ? _tr('ingest_source_explicit')
         : source == 'filename'
-            ? 'nume fișier'
+            ? _tr('ingest_source_filename')
             : source == 'pdf_text'
-                ? 'text PDF'
+                ? _tr('ingest_source_pdf_text')
                 : '—';
 
     return Card(
@@ -232,9 +236,9 @@ class _IngestStatusScreenState extends State<IngestStatusScreen> {
         ),
         subtitle: Text(
           isOk
-              ? 'CNP din: $sourceLabel · '
-                  '${log['patient_created'] == true ? "pacient nou" : "pacient existent"}'
-              : 'Eroare: ${log['error_message'] ?? status}',
+              ? '${_tr('ingest_cnp_from')}: $sourceLabel · '
+                  '${log['patient_created'] == true ? _tr('ingest_new_patient') : _tr('ingest_existing_patient')}'
+              : '${_tr('error')}: ${log['error_message'] ?? status}',
           style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         ),
         trailing: Text(

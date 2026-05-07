@@ -79,7 +79,7 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       _startCountdown();
     } else {
       setState(() => _loadingCode = false);
-      _snack(result['message'] ?? _tr('error'), isError: true);
+      _snack(_tr((result['message'] ?? 'error').toString()), isError: true);
     }
   }
 
@@ -141,7 +141,8 @@ class _GenerateAccessCodeScreenState extends State<GenerateAccessCodeScreen>
       });
       _emailCtrl.clear();
     } else {
-      _snack(result['message'] ?? _tr('send_error'), isError: true);
+      _snack(_tr((result['message'] ?? 'send_error').toString()),
+          isError: true);
     }
   }
 

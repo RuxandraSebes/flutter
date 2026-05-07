@@ -127,7 +127,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
     } else {
       // Error shown inline within the dialog itself (REQ-9)
       // But if dialog already closed, show here
-      _snackError(r['message'] ?? _tr('create_error'));
+      _snackError(_tr((r['message'] ?? 'create_error').toString()));
     }
   }
 
@@ -143,7 +143,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       _snackSuccess(_tr('updated'));
       _loadUsers();
     } else {
-      _snackError(r['message'] ?? _tr('update_error'));
+      _snackError(_tr((r['message'] ?? 'update_error').toString()));
     }
   }
 
@@ -179,9 +179,9 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
       companionId: result['companion_id'],
     );
     if (r['success'] == true) {
-      _snackSuccess(r['message'] ?? _tr('linked_success'));
+      _snackSuccess(_tr((r['message'] ?? 'linked_success').toString()));
     } else {
-      _snackError(r['message'] ?? _tr('remove_link_error'));
+      _snackError(_tr((r['message'] ?? 'remove_link_error').toString()));
     }
   }
 
@@ -219,7 +219,7 @@ class _HospitalAdminScreenState extends State<HospitalAdminScreen>
           Text(_tr('hospital_admin'),
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               overflow: TextOverflow.ellipsis),
-          Text(widget.user.hospitalName,
+          Text('${widget.user.name} · ${_tr('role_hospital_admin')}',
               style: const TextStyle(fontSize: 12, color: Colors.white70),
               overflow: TextOverflow.ellipsis),
         ]),

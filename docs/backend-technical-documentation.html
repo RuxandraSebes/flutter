@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Backend Technical Documentation - Spital Backend</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 32px; line-height: 1.45; color: #1f2937; }
+    h1, h2, h3 { color: #0f172a; }
+    code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+    pre { background: #f8fafc; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f9fafb; }
+  </style>
+</head>
+<body>
+  <h1>Backend Technical Documentation</h1>
+  <p><strong>Project:</strong> Spital backend API (Laravel)</p>
+  <p><strong>Codebase:</strong> <code>spital-backend</code></p>
+
+  <h2>1. Technology Stack</h2>
+  <ul>
+    <li>PHP + Laravel framework</li>
+    <li>Eloquent ORM and Laravel migrations</li>
+    <li>Laravel Sanctum for token authentication</li>
+    <li>Role-based middleware authorization</li>
+    <li>REST JSON API consumed by Flutter mobile app</li>
+  </ul>
+
+  <h2>2. High-Level Architecture</h2>
+  <ul>
+    <li><strong>Routes:</strong> <code>routes/api.php</code> exposes all public and protected endpoints.</li>
+    <li><strong>Controllers:</strong> Auth, Documents, Access Codes, Admin, Chat, Profile, PDF Ingestion.</li>
+    <li><strong>Models:</strong> <code>User</code>, <code>Document</code>, <code>Hospital</code>, <code>CompanionAccessCode</code>, <code>ChatMessage</code>, <code>IngestLog</code>.</li>
+    <li><strong>Middleware:</strong> <code>CheckRole</code> enforces role constraints on route groups.</li>
+  </ul>
+
+  <h2>3. Authentication and Authorization</h2>
+  <h3>3.1 Authentication</h3>
+  <ul>
+    <li>Login creates Sanctum tokens.</li>
+    <li>Protected routes are grouped under <code>auth:sanctum</code>.</li>
+    <li>Current user endpoint: <code>GET /api/me</code>.</li>
+  </ul>
+
+  <h3>3.2 Role System</h3>
+  <p>Role constants are defined in <code>App\Models\User</code>:</p>
+  <ul>
+    <li><code>global_admin</code></li>
+    <li><code>hospital_admin</code></li>
+    <li><code>doctor</code></li>
+    <li><code>patient</code></li>
+    <li><code>companion</code></li>
+  </ul>
+  <p><code>CheckRole</code> middleware validates:</p>
+  <ul>
+    <li>authenticated user exists</li>
+    <li>user account is active (<code>is_active</code>)</li>
+    <li>user role is one of the accepted roles for the endpoint</li>
+  </ul>
+
+  <h2>4. API Surface (Summary)</h2>
+  <table>
+    <tr><th>Area</th><th>Endpoints</th><th>Description</th></tr>
+    <tr>
+      <td>Auth</td>
+      <td><code>POST /register</code>, <code>POST /login</code>, <code>POST /auth/verify-email</code>, <code>POST /auth/resend-verification</code>, <code>POST /logout</code>, <code>GET /me</code></td>
+      <td>User registration, login, email verification, session lifecycle.</td>
+    </tr>
+    <tr>
+      <td>Hospitals</td>
+      <td><code>GET /hospitals/public</code>, <code>GET/POST/PUT/DELETE /hospitals</code> (admin)</td>
+      <td>Public hospital list for registration and admin CRUD for hospital entities.</td>
+    </tr>
+    <tr>
+      <td>Documents</td>
+      <td><code>GET /documents</code>, <code>POST /documents</code>, <code>DELETE /documents/{id}</code></td>
+      <td>Upload, list, delete medical PDFs with role-aware access logic.</td>
+    </tr>
+    <tr>
+      <td>Companion Access</td>
+      <td><code>POST /access-codes/generate</code>, <code>POST /access-codes/redeem</code>, <code>POST /access-codes/invite</code>, <code>POST /access-codes/invite/redeem</code></td>
+      <td>Numeric and email invite linking between patients and companions.</td>
+    </tr>
+    <tr>
+      <td>Self-service links</td>
+      <td><code>GET/DELETE /my-companions</code>, <code>GET/DELETE /my-patients</code></td>
+      <td>Patient and companion can view/remove existing links.</td>
+    </tr>
+    <tr>
+      <td>Chat</td>
+      <td><code>GET /chat/conversations</code>, <code>GET /chat/messages</code>, <code>POST /chat/messages</code></td>
+      <td>Role-aware messaging between doctor side and patient side.</td>
+    </tr>
+    <tr>
+      <td>Admin users</td>
+      <td><code>GET /users</code>, <code>POST /users</code>, <code>PUT /users/{id}</code>, <code>DELETE /users/{id}</code>, <code>POST /companions/link</code>, <code>POST /companions/unlink</code></td>
+      <td>User management and patient-companion link management.</td>
+    </tr>
+    <tr>
+      <td>Ingestion</td>
+      <td><code>POST /ingest/pdf</code>, <code>POST /ingest/poll</code>, <code>GET /ingest/status</code></td>
+      <td>Automated ingest pipeline for incoming PDFs and operational status visibility.</td>
+    </tr>
+  </table>
+
+  <h2>5. Data Model (Core Tables)</h2>
+  <ul>
+    <li><strong>users:</strong> identity, role, CNP, hospital, specialization, active flag, email verification fields.</li>
+    <li><strong>hospitals:</strong> master data for hospital entities.</li>
+    <li><strong>documents:</strong> uploaded medical files linked to user/patient owner.</li>
+    <li><strong>patient_companions:</strong> many-to-many patient/companion relationship with metadata.</li>
+    <li><strong>companion_access_codes:</strong> temporary numeric codes / invite tokens with TTL and used flag.</li>
+    <li><strong>chat_messages:</strong> conversation messages including sender role marker.</li>
+    <li><strong>ingest_logs:</strong> ingestion operational events and outcomes.</li>
+  </ul>
+
+  <h2>6. Business Rules</h2>
+  <ul>
+    <li>Only active users are authorized to use protected endpoints.</li>
+    <li>Patient-companion linking is temporary-token based (numeric code or email invite).</li>
+    <li>Document access is role constrained: users see only what they are authorized to read.</li>
+    <li>Admin actions are split:
+      <ul>
+        <li>Global admin: full hospital CRUD + full user scope.</li>
+        <li>Hospital admin: user write scope and companion link management.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>7. Response and Error Strategy</h2>
+  <ul>
+    <li>API returns JSON with success payloads or <code>message</code> strings for error/info.</li>
+    <li>Frontend maps backend messages to localization keys (<code>backend_message_mapper.dart</code>).</li>
+    <li>Status codes reflect semantics: <code>200/201</code> success, <code>401</code> unauthenticated, <code>403</code> forbidden, <code>422</code> validation/semantic issues.</li>
+  </ul>
+
+  <h2>8. Environment and Deployment Basics</h2>
+  <pre>composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve --host=0.0.0.0 --port=8000</pre>
+  <p>For production, use proper web server (Nginx/Apache), HTTPS, queue workers if used, and secured environment variables.</p>
+
+  <h2>9. Security Recommendations</h2>
+  <ul>
+    <li>Restrict CORS origins in production.</li>
+    <li>Rate-limit login and token redemption endpoints.</li>
+    <li>Store API keys and mail credentials only in environment variables.</li>
+    <li>Add audit logging for admin write actions if compliance requires traceability.</li>
+  </ul>
+
+  <h2>10. Operational Notes</h2>
+  <ul>
+    <li><code>/ingest/status</code> endpoint is useful for support and monitoring pipeline health.</li>
+    <li>Database migrations include progressive features (email verification, chat, ingest logs, companion token invites).</li>
+    <li>Keep frontend <code>AuthService.baseUrl</code> aligned with actual backend environment.</li>
+  </ul>
+</body>
+</html>

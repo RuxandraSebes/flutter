@@ -1,3 +1,9 @@
+// ── DoctorScreen ─────────────────────────────────────────────────────────────
+// Changes:
+//  1. Pass an onUnreadChanged callback into ChatConversationsScreen so the
+//     tab badge stays in sync whenever conversations are (re)loaded.
+//  2. _chatTab() now forwards that callback.
+
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/user_model.dart';
@@ -27,7 +33,6 @@ class _DoctorScreenState extends State<DoctorScreen>
   final _docService = DocumentService();
   final _chatService = ChatService();
 
-  // Metodă helper pentru traduceri
   String _tr(String key) => LanguageProvider.of(context)?.tr(key) ?? key;
 
   List<Map<String, dynamic>> _patients = [];
@@ -88,6 +93,12 @@ class _DoctorScreenState extends State<DoctorScreen>
     }
   }
 
+  /// Called by ChatConversationsScreen whenever it reloads its list.
+  /// Receives the fresh total so we never need a second API call.
+  void _onConversationsUnreadChanged(int newTotal) {
+    if (mounted) setState(() => _unreadMessages = newTotal);
+  }
+
   Future<void> _uploadForPatient() async {
     final l = AppLocalizations.of(context);
     if (_selectedPatient == null) {
@@ -113,7 +124,7 @@ class _DoctorScreenState extends State<DoctorScreen>
       _snack(l.get('upload_success'));
       _loadDocs(patientId: _selectedPatient!['id']);
     } else {
-      _snack(r['message'] ?? l.get('upload_error'), isError: true);
+      _snack(_tr((r['message'] ?? 'upload_error').toString()), isError: true);
     }
   }
 
@@ -154,7 +165,7 @@ class _DoctorScreenState extends State<DoctorScreen>
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               overflow: TextOverflow.ellipsis),
           Text(
-            '${widget.user.specialization ?? l.get('doctor')} · ${widget.user.hospitalName}',
+            '${l.get('role_doctor')} · ${widget.user.hospitalName}',
             style: const TextStyle(fontSize: 12, color: Colors.white70),
             overflow: TextOverflow.ellipsis,
           ),
@@ -481,6 +492,11 @@ class _DoctorScreenState extends State<DoctorScreen>
   // ── Chat tab ──────────────────────────────────────────────────────────────
 
   Widget _chatTab() {
-    return ChatConversationsScreen(currentUser: widget.user);
+    return ChatConversationsScreen(
+      currentUser: widget.user,
+      // Whenever ChatConversationsScreen reloads its list it fires this
+      // callback with the fresh total, keeping the tab badge in sync.
+      onUnreadChanged: _onConversationsUnreadChanged,
+    );
   }
 }

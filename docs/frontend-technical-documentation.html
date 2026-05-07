@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Frontend Technical Documentation - Spital App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 32px; line-height: 1.45; color: #1f2937; }
+    h1, h2, h3 { color: #0f172a; }
+    code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+    pre { background: #f8fafc; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+    th { background: #f9fafb; }
+  </style>
+</head>
+<body>
+  <h1>Frontend Technical Documentation</h1>
+  <p><strong>Project:</strong> Spital mobile app (Flutter)</p>
+  <p><strong>Codebase:</strong> <code>spital_app</code></p>
+
+  <h2>1. Architecture Overview</h2>
+  <p>The frontend is a Flutter mobile client using a classic layered approach:</p>
+  <ul>
+    <li><strong>Presentation layer:</strong> screen widgets in <code>lib/screens</code>.</li>
+    <li><strong>Service layer:</strong> REST API clients in <code>lib/services</code>.</li>
+    <li><strong>Model layer:</strong> user model in <code>lib/models/user_model.dart</code>.</li>
+    <li><strong>Localization layer:</strong> i18n maps and locale provider in <code>lib/i18n</code>.</li>
+  </ul>
+
+  <h2>2. Bootstrap and Navigation Flow</h2>
+  <ul>
+    <li><code>main.dart</code> wraps the app in <code>LanguageProvider</code> and starts <code>AuthGate</code>.</li>
+    <li><code>AuthGate</code> checks token presence and cached user data via <code>AuthService</code>.</li>
+    <li><code>roleBasedHome(user)</code> routes users by role:
+      <ul>
+        <li><code>global_admin</code> - Global admin dashboard</li>
+        <li><code>hospital_admin</code> - Hospital admin dashboard</li>
+        <li><code>doctor</code> - Doctor dashboard</li>
+        <li><code>patient</code> / <code>companion</code> - Home screen</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>3. Feature Modules</h2>
+  <h3>3.1 Authentication and Profile</h3>
+  <ul>
+    <li><code>login_screen.dart</code>: login form and auth execution.</li>
+    <li><code>register_screen.dart</code>: registration with role/CNP/hospital support.</li>
+    <li><code>email_verification_screen.dart</code>: code verification after registration.</li>
+    <li><code>claim_account_screen.dart</code>: profile completion for auto-created patient accounts.</li>
+    <li><code>auth_service.dart</code>: login/register/verify/resend/logout/me/profile update.</li>
+  </ul>
+
+  <h3>3.2 Documents</h3>
+  <ul>
+    <li><code>home_screen.dart</code> and <code>doctor_screen.dart</code> list/upload/delete documents based on role permissions.</li>
+    <li><code>pdf_viewer_screen.dart</code> handles PDF display and paging.</li>
+    <li><code>document_service.dart</code> uploads and queries documents via API.</li>
+  </ul>
+
+  <h3>3.3 Companion Linking</h3>
+  <ul>
+    <li><code>generate_access_code_screen.dart</code> creates numeric code or email invite.</li>
+    <li><code>redeem_access_code_screen.dart</code> redeems access code/invite token.</li>
+    <li><code>invite_token_screen.dart</code> deep-link invitation acceptance flow.</li>
+    <li><code>my_companions_screen.dart</code> self-service manage linked companions/patients.</li>
+    <li><code>access_code_service.dart</code> encapsulates all companion-link endpoints.</li>
+  </ul>
+
+  <h3>3.4 Chat</h3>
+  <ul>
+    <li><code>chat_conversations_screen.dart</code> conversation list.</li>
+    <li><code>chat_screen.dart</code> message thread per patient.</li>
+    <li><code>chat_service.dart</code> handles conversation and send/read operations.</li>
+  </ul>
+
+  <h3>3.5 Administration</h3>
+  <ul>
+    <li><code>global_admin_screen.dart</code>: manage hospitals and all users.</li>
+    <li><code>hospital_admin_screen.dart</code>: manage hospital users and companion links.</li>
+    <li><code>doctor_screen.dart</code>: patient view, document upload, medical messaging.</li>
+    <li><code>admin_service.dart</code>: hospital/user CRUD and link/unlink API calls.</li>
+  </ul>
+
+  <h2>4. Localization and Message Translation</h2>
+  <ul>
+    <li>Translation maps: <code>en.dart</code>, <code>ro.dart</code>, <code>hu.dart</code>, <code>uk.dart</code>, <code>sk.dart</code>.</li>
+    <li><code>AppLocalizations.get(key)</code> returns translated text by locale.</li>
+    <li><code>backend_message_mapper.dart</code> normalizes backend plain-text messages to i18n keys so UI never exposes raw API text.</li>
+    <li>Language selection is persisted through <code>flutter_secure_storage</code> via <code>LanguageProvider</code>.</li>
+  </ul>
+
+  <h2>5. API Integration Contract</h2>
+  <table>
+    <tr><th>Service</th><th>Purpose</th><th>Main Endpoints</th></tr>
+    <tr><td>AuthService</td><td>Session and profile</td><td>/login, /register, /auth/verify-email, /logout, /me, /profile</td></tr>
+    <tr><td>DocumentService</td><td>Documents</td><td>/documents (GET/POST), /documents/{id} (DELETE)</td></tr>
+    <tr><td>AccessCodeService</td><td>Companion linking</td><td>/access-codes/*, /my-companions, /my-patients</td></tr>
+    <tr><td>ChatService</td><td>Chat</td><td>/chat/conversations, /chat/messages</td></tr>
+    <tr><td>AdminService</td><td>Admin operations</td><td>/users, /hospitals, /companions/link, /companions/unlink</td></tr>
+  </table>
+
+  <h2>6. Configuration and Environments</h2>
+  <ul>
+    <li><strong>Backend URL:</strong> configured in <code>AuthService.baseUrl</code>.</li>
+    <li><strong>Auth:</strong> token-based API auth (Sanctum), token stored in secure storage.</li>
+    <li><strong>Network requirement:</strong> mobile device must reach backend host/IP in <code>baseUrl</code>.</li>
+  </ul>
+
+  <h2>7. Error Handling Strategy</h2>
+  <ul>
+    <li>Services return <code>{ success: true/false, ... }</code> maps.</li>
+    <li>Frontend translates keys from service responses before showing UI text.</li>
+    <li>Fallback key for generic failures is <code>error</code> or feature-specific keys.</li>
+  </ul>
+
+  <h2>8. Security Notes</h2>
+  <ul>
+    <li>Auth token is stored with <code>flutter_secure_storage</code>.</li>
+    <li>Client enforces role-based screen routing, but backend is the final authority for permissions.</li>
+    <li>Do not hardcode production URLs or credentials in source for release builds.</li>
+  </ul>
+
+  <h2>9. Build and Run</h2>
+  <pre>flutter pub get
+flutter run
+
+# Release APK split by ABI
+flutter build apk --release --split-per-abi</pre>
+
+  <h2>10. Suggested Improvements</h2>
+  <ul>
+    <li>Move <code>baseUrl</code> to build-time env configuration (<code>--dart-define</code>).</li>
+    <li>Add formal DTO classes for API responses to reduce runtime map-key mistakes.</li>
+    <li>Add widget/integration tests for auth, document upload, and companion linking flows.</li>
+  </ul>
+</body>
+</html>

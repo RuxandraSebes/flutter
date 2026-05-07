@@ -78,8 +78,8 @@ class _InviteTokenScreenState extends State<InviteTokenScreen> {
         _patientName = result['patient']?['name'] as String?;
       });
     } else {
-      setState(
-          () => _error = result['message'] as String? ?? _tr('token_invalid'));
+      setState(() =>
+          _error = _tr((result['message'] as String?) ?? 'token_invalid'));
     }
   }
 
