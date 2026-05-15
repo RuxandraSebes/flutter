@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Technical Documentation - Frontend, Backend, Database</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; line-height: 1.45; color: #1f2937; }
+    h1, h2, h3, h4 { color: #0f172a; }
+    code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+    pre { background: #f8fafc; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 12px; }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+      word-break: keep-all;
+      overflow-wrap: normal;
+    }
+    th { background: #f9fafb; }
+    .note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 10px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Technical Documentation (Frontend + Backend + Database)</h1>
+  <p><strong>Project:</strong> Spital platform</p>
+  <p><strong>Scope:</strong> End-to-end architecture of the mobile client, Laravel API, and relational database model.</p>
+
+  <h2>1. High-Level Architecture</h2>
+  <pre>
++------------------------+            HTTPS/JSON            +-------------------------+
+| Flutter Mobile Client  | <--------------------------------> | Laravel API Backend      |
+| (Android / iOS)        |                                    | (Auth, Docs, Chat, Admin)|
++------------------------+                                    +-------------------------+
+                                                                          |
+                                                                          |
+                                                                          v
+                                                           +------------------------------+
+                                                           | Relational Database (MySQL)  |
+                                                           | Users, Docs, Links, Chat, etc|
+                                                           +------------------------------+
+  </pre>
+
+  <h2>2. Repository Structure (Tree View)</h2>
+  <h3>2.1 Frontend tree (<code>spital_app</code>)</h3>
+  <pre>
+spital_app/
+  lib/
+    main.dart
+    models/
+      user_model.dart
+    services/
+      auth_service.dart
+      admin_service.dart
+      document_service.dart
+      access_code_service.dart
+      chat_service.dart
+    screens/
+      login_screen.dart
+      register_screen.dart
+      email_verification_screen.dart
+      home_screen.dart
+      doctor_screen.dart
+      hospital_admin_screen.dart
+      global_admin_screen.dart
+      generate_access_code_screen.dart
+      redeem_access_code_screen.dart
+      invite_token_screen.dart
+      chat_conversations_screen.dart
+      chat_screen.dart
+      my_companions_screen.dart
+      pdf_viewer_screen.dart
+      claim_account_screen.dart
+    i18n/
+      translations.dart
+      en.dart / ro.dart / hu.dart / sk.dart / uk.dart
+      language_provider.dart
+      backend_message_mapper.dart
+  </pre>
+
+  <h3>2.2 Backend tree (<code>spital-backend</code>)</h3>
+  <pre>
+spital-backend/
+  routes/
+    api.php
+  app/
+    Http/
+      Controllers/
+        AuthController.php
+        ProfileController.php
+        DocumentController.php
+        AccessCodeController.php
+        ChatController.php
+        AdminController.php
+        PdfIngestionController.php
+      Middleware/
+        CheckRole.php
+    Models/
+      User.php
+      Document.php
+      Hospital.php
+      CompanionAccessCode.php
+      ChatMessage.php
+      IngestLog.php
+  database/
+    migrations/
+      create_users_table
+      create_documents_table
+      create_hospitals_table
+      create_patient_companions_table
+      create_companion_access_codes_table
+      create_chat_messages_table
+      create_ingest_logs_table
+      ...supporting migrations...
+  </pre>
+
+  <h2>3. Frontend Technical Details</h2>
+  <h3>3.1 Frontend module linking diagram</h3>
+  <pre>
+main.dart (AuthGate, roleBasedHome)
+   |
+   +--> Login/Register/EmailVerification
+   |       |
+   |       +--> AuthService (login/register/verify/resend/logout/me)
+   |
+   +--> HomeScreen (patient/companion)
+   |       +--> DocumentService (documents)
+   |       +--> AccessCodeService (code/invite/links)
+   |       +--> ChatService (conversations/messages)
+   |
+   +--> DoctorScreen
+   |       +--> AdminService (patient listing)
+   |       +--> DocumentService
+   |       +--> ChatService
+   |
+   +--> HospitalAdminScreen
+   |       +--> AdminService
+   |       +--> DocumentService
+   |
+   +--> GlobalAdminScreen
+           +--> AdminService
+  </pre>
+
+  <h3>3.2 FE responsibilities by layer</h3>
+  <table>
+    <tr><th>Layer</th><th>Files</th><th>Responsibility</th></tr>
+    <tr><td>Bootstrap</td><td>main.dart</td><td>App startup, locale wiring, role-based navigation</td></tr>
+    <tr><td>Presentation</td><td>lib/screens/*</td><td>UI, user interactions, flow orchestration</td></tr>
+    <tr><td>Service/API</td><td>lib/services/*</td><td>HTTP calls, auth headers, response normalization</td></tr>
+    <tr><td>Model</td><td>models/user_model.dart</td><td>User role and identity data shape</td></tr>
+    <tr><td>Localization</td><td>lib/i18n/*</td><td>Language maps, language persistence, backend message key mapping</td></tr>
+  </table>
+
+  <h3>3.3 Frontend deployment/distribution notes</h3>
+  <ul>
+    <li>Current internal Android distribution supports APK builds.</li>
+    <li>For manual install flow, create APK and upload it to Google Drive.</li>
+    <li>Users download APK from Drive and install it on Android devices.</li>
+  </ul>
+  <div class="note">
+    FE operational note requested: upload APK to Drive so users can install the app from the shared link.
+  </div>
+
+  <h2>4. Backend Technical Details</h2>
+  <h3>4.1 API route map (functional groups)</h3>
+  <table>
+    <tr><th>Group</th><th>Endpoints</th><th>Controller</th><th>Access</th></tr>
+    <tr><td>Auth</td><td>register, login, verify-email, resend-verification, logout, me</td><td>AuthController</td><td>Public + Authenticated</td></tr>
+    <tr><td>Profile</td><td>profile update</td><td>ProfileController</td><td>Authenticated</td></tr>
+    <tr><td>Documents</td><td>documents list/upload/delete</td><td>DocumentController</td><td>Authenticated, role-filtered in controller</td></tr>
+    <tr><td>Access Codes</td><td>generate/redeem code, invite/redeem invite</td><td>AccessCodeController</td><td>Authenticated, role-aware</td></tr>
+    <tr><td>Companion links self-service</td><td>my-companions, my-patients</td><td>AccessCodeController</td><td>Authenticated</td></tr>
+    <tr><td>Chat</td><td>conversations, messages, send</td><td>ChatController</td><td>Authenticated, conversation access checks</td></tr>
+    <tr><td>Admin users/hospitals</td><td>users CRUD, hospitals CRUD, companions link/unlink</td><td>AdminController</td><td>role middleware: global_admin / hospital_admin / doctor</td></tr>
+    <tr><td>Ingestion</td><td>ingest pdf, poll, status</td><td>PdfIngestionController</td><td>Public/protected mix, endpoint-dependent</td></tr>
+  </table>
+
+  <h3>4.2 Backend module linking diagram</h3>
+  <pre>
+routes/api.php
+   |
+   +--> Middleware: auth:sanctum, role:...
+   |
+   +--> Controllers
+          |
+          +--> Models (Eloquent)
+                 |
+                 +--> Database tables
+  </pre>
+
+  <h3>4.3 Authorization chain</h3>
+  <pre>
+Request --> auth:sanctum --> CheckRole middleware --> Controller business rule checks --> DB query/command
+  </pre>
+
+  <h2>5. Database Technical Details</h2>
+  <h3>5.1 Entity relationship diagram (logical)</h3>
+  <pre>
+users (id) -----------------------------< documents (user_id)
+  |
+  +-- belongsTo hospitals (hospital_id)
+  |
+  +--< patient_companions >-- users
+      (patient_id, companion_id, can_view_documents, relationship)
+  |
+  +--< companion_access_codes (patient_id)
+  |
+  +--< chat_messages (patient_id)
+         |
+         +-- sender_id -> users.id
+
+conversation_last_seen (user_id, patient_id, last_seen_at)
+ingest_logs (operational ingestion status history)
+  </pre>
+
+  <h3>5.2 Table purpose matrix</h3>
+  <table>
+    <tr><th>Table</th><th>Primary Purpose</th><th>Main Links</th></tr>
+    <tr><td>users</td><td>All system identities and roles</td><td>hospital_id, documents.user_id, chat_messages.sender_id, patient_companions</td></tr>
+    <tr><td>hospitals</td><td>Hospital master records</td><td>users.hospital_id</td></tr>
+    <tr><td>documents</td><td>Medical file metadata and ownership</td><td>user_id -> users.id</td></tr>
+    <tr><td>patient_companions</td><td>Patient-to-companion many-to-many links</td><td>patient_id -> users.id, companion_id -> users.id</td></tr>
+    <tr><td>companion_access_codes</td><td>Temporary code/token access grants</td><td>patient_id -> users.id</td></tr>
+    <tr><td>chat_messages</td><td>Conversation messages per patient context</td><td>patient_id -> users.id, sender_id -> users.id</td></tr>
+    <tr><td>conversation_last_seen</td><td>Unread tracking cursor per user/conversation</td><td>user_id + patient_id</td></tr>
+    <tr><td>ingest_logs</td><td>Ingestion operational telemetry</td><td>Document ingest lifecycle events</td></tr>
+  </table>
+
+  <h2>6. Cross-Layer Traceability (FE -> BE -> DB)</h2>
+  <table>
+    <tr><th>Feature</th><th>Frontend</th><th>Backend Endpoint/Controller</th><th>Database Tables</th></tr>
+    <tr><td>Login</td><td>login_screen + auth_service</td><td>POST /login, AuthController@login</td><td>users, personal_access_tokens</td></tr>
+    <tr><td>Email verification</td><td>email_verification_screen + auth_service</td><td>POST /auth/verify-email, AuthController@verifyEmail</td><td>users</td></tr>
+    <tr><td>Document upload/list/delete</td><td>home_screen, doctor_screen + document_service</td><td>/documents, DocumentController</td><td>documents, users</td></tr>
+    <tr><td>Companion linking</td><td>generate/redeem/invite screens + access_code_service</td><td>/access-codes/*, AccessCodeController</td><td>companion_access_codes, patient_companions, users</td></tr>
+    <tr><td>Chat unread and messaging</td><td>home/chat screens + chat_service</td><td>/chat/conversations, /chat/messages, ChatController</td><td>chat_messages, conversation_last_seen, users</td></tr>
+    <tr><td>Admin user/hospital management</td><td>global_admin_screen, hospital_admin_screen + admin_service</td><td>/users, /hospitals, AdminController</td><td>users, hospitals, patient_companions</td></tr>
+  </table>
+
+  <h2>7. Operational Build/Run Commands</h2>
+  <h3>7.1 Frontend</h3>
+  <pre>
+flutter pub get
+flutter run
+flutter build apk --release --split-per-abi
+  </pre>
+
+  <h3>7.2 Backend</h3>
+  <pre>
+composer install
+php artisan key:generate
+php artisan migrate
+php artisan serve --host=0.0.0.0 --port=8000
+  </pre>
+
+  <h2>8. Non-Functional Notes</h2>
+  <ul>
+    <li>Localization is centralized in FE i18n maps with backend message key mapping.</li>
+    <li>Role authorization is enforced server-side by middleware and controller checks.</li>
+    <li>Unread chat totals are computed from conversation-level unread counts.</li>
+  </ul>
+</body>
+</html>

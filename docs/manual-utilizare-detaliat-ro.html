@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <title>Manual de Utilizare Detaliat - Spital App</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 30px;
+        line-height: 1.52;
+        color: #1f2937;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #0f172a;
+      }
+      code {
+        background: #f3f4f6;
+        padding: 2px 4px;
+        border-radius: 4px;
+      }
+      .note {
+        background: #eff6ff;
+        border-left: 4px solid #2563eb;
+        padding: 10px;
+        margin: 10px 0;
+      }
+      .warn {
+        background: #fff7ed;
+        border-left: 4px solid #ea580c;
+        padding: 10px;
+        margin: 10px 0;
+      }
+      .ok {
+        background: #f0fdf4;
+        border-left: 4px solid #16a34a;
+        padding: 10px;
+        margin: 10px 0;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 12px 0;
+        font-size: 9px;
+        table-layout: auto;
+      }
+
+      th,
+      td {
+        border: 1px solid #d1d5db;
+        padding: 4px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th:first-child,
+      td:first-child {
+        width: 160px;
+        white-space: nowrap;
+      }
+
+      th {
+        background: #f9fafb;
+      }
+      ul,
+      ol {
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Manual de Utilizare Detaliat</h1>
+    <p>
+      <strong>Aplicație:</strong> Spital App (pacienți, însoțitori, medici,
+      administratori)
+    </p>
+    <p>
+      <strong>Scop:</strong> gestionarea documentelor medicale, asocierea
+      pacient-însoțitor, mesagerie medicală și administrare utilizatori/spitale.
+    </p>
+
+    <h2>1. Introducere</h2>
+    <p>
+      Acest manual explică în detaliu toate fluxurile importante din aplicație,
+      inclusiv:
+    </p>
+    <ul>
+      <li>creare cont și autentificare;</li>
+      <li>verificare email (cod de 6 cifre);</li>
+      <li>asociere pacient-însoțitor prin cod numeric sau invitație email;</li>
+      <li>încărcare și vizualizare documente;</li>
+      <li>mesagerie;</li>
+      <li>funcționalități specifice fiecărui rol.</li>
+    </ul>
+
+    <h2>2. Roluri în aplicație</h2>
+    <table>
+      <tr>
+        <th>Rol</th>
+        <th>Descriere</th>
+        <th>Ce poate face</th>
+      </tr>
+      <tr>
+        <td>Pacient2</td>
+        <td>Utilizatorul principal al documentelor proprii.</td>
+        <td>
+          Încarcă documente, oferă acces însoțitorilor, vede mesaje, gestionează
+          însoțitorii asociați.
+        </td>
+      </tr>
+      <tr>
+        <td>Însoțitor</td>
+        <td>Persoană care primește acces la documentele unui pacient.</td>
+        <td>
+          Se asociază cu pacient prin cod/token, vede documentele pacientului,
+          poate conversa în chat.
+        </td>
+      </tr>
+      <tr>
+        <td>Medic</td>
+        <td>Utilizator medical cu acces la pacienți și documente.</td>
+        <td>
+          Caută pacienți, încarcă documente pe pacient, conversații medicale,
+          consultă status ingestie.
+        </td>
+      </tr>
+      <tr>
+        <td>Admin Spital</td>
+        <td>Administrator la nivel de spital.</td>
+        <td>
+          Gestionează utilizatori, face legături pacient-însoțitor, vizualizează
+          documente.
+        </td>
+      </tr>
+      <tr>
+        <td>Global Admin2</td>
+        <td>Administrator general al platformei.</td>
+        <td>Gestionează spitale și utilizatori la nivel global.</td>
+      </tr>
+    </table>
+    <h2>3. Primii pași</h2>
+    <h3>3.1 Instalare și deschidere aplicație</h3>
+    <ol>
+      <li>Instalează aplicația pe telefon/tabletă.</li>
+      <li>Deschide aplicația.</li>
+      <li>Selectează limba din selectorul de limbă (iconiță glob/flag).</li>
+    </ol>
+
+    <h3>3.2 Ecran principal de autentificare</h3>
+    <p>Ai două opțiuni:</p>
+    <ul>
+      <li><strong>Intră în cont</strong> (dacă ai deja cont);</li>
+      <li><strong>Înregistrează-te</strong> (dacă nu ai cont).</li>
+    </ul>
+
+    <h2>4. Înregistrare cont (pas cu pas)</h2>
+    <h3>4.1 Cum completezi formularul</h3>
+    <ol>
+      <li>Apasă pe <strong>Înregistrează-te</strong>.</li>
+      <li>
+        Selectează tipul de cont (de obicei Pacient sau Însoțitor, după caz).
+      </li>
+      <li>
+        Completează:
+        <ul>
+          <li>Nume complet</li>
+          <li>Email valid</li>
+          <li>Parolă (minim 6 caractere)</li>
+          <li>CNP (obligatoriu conform regulilor rolului din aplicație)</li>
+          <li>Spital (opțional, dacă e disponibil în formular)</li>
+        </ul>
+      </li>
+      <li>Apasă <strong>Creare cont</strong>.</li>
+    </ol>
+
+    <div class="warn">
+      Dacă apare eroare la înregistrare, verifică: format email, CNP (13 cifre),
+      parolă minim 6 caractere și conexiunea la internet.
+    </div>
+
+    <h3>4.2 Verificare email (obligatorie)</h3>
+    <p>După înregistrare, aplicația cere confirmarea adresei de email.</p>
+    <ol>
+      <li>Verifică inbox-ul emailului introdus la înregistrare.</li>
+      <li>Caută codul de 6 cifre primit.</li>
+      <li>În aplicație, introdu toate cele 6 cifre.</li>
+      <li>Apasă <strong>Confirmă contul</strong>.</li>
+    </ol>
+
+    <p>Dacă nu ai primit codul:</p>
+    <ol>
+      <li>Verifică folderul Spam/Junk.</li>
+      <li>Apasă <strong>Retrimite codul</strong> din ecranul de verificare.</li>
+    </ol>
+
+    <div class="ok">
+      După validare, contul este activ și se face autentificarea în aplicație.
+    </div>
+
+    <h2>5. Login (autentificare)</h2>
+    <ol>
+      <li>Deschide aplicația.</li>
+      <li>Introdu email + parolă.</li>
+      <li>Apasă <strong>Intră în cont</strong>.</li>
+    </ol>
+
+    <p>Posibile mesaje:</p>
+    <ul>
+      <li>
+        <strong>Date de autentificare incorecte</strong> - email/parolă greșite.
+      </li>
+      <li>
+        <strong>Contul nu este verificat</strong> - trebuie finalizată
+        verificarea email.
+      </li>
+      <li>
+        <strong>Cont dezactivat</strong> - necesită intervenție administrator.
+      </li>
+    </ul>
+
+    <h2>6. Flux complet pacient - însoțitor (cod și invitație)</h2>
+    <h3>6.1 Varianta A: cod numeric (rapid)</h3>
+    <h4>Pentru pacient</h4>
+    <ol>
+      <li>Intră în cont pacient.</li>
+      <li>Apasă <strong>Oferă acces însoțitor</strong>.</li>
+      <li>În tab-ul cod numeric, apasă <strong>Generează cod</strong>.</li>
+      <li>Trimite cele 6 cifre însoțitorului (telefon/mesaj/etc.).</li>
+    </ol>
+
+    <h4>Pentru însoțitor</h4>
+    <ol>
+      <li>Intră în cont însoțitor.</li>
+      <li>Deschide ecranul de asociere pacient.</li>
+      <li>Introdu codul de 6 cifre primit.</li>
+      <li>Apasă <strong>Activează codul</strong>.</li>
+    </ol>
+
+    <div class="note">
+      Codul numeric are valabilitate limitată. Dacă este expirat, pacientul
+      trebuie să genereze un cod nou.
+    </div>
+
+    <h3>6.2 Varianta B: invitație email (token)</h3>
+    <h4>Pentru pacient</h4>
+    <ol>
+      <li>
+        În ecranul de acces, selectează tab-ul <strong>Invitație email</strong>.
+      </li>
+      <li>Introdu adresa de email a însoțitorului.</li>
+      <li>Apasă <strong>Trimite invitație</strong>.</li>
+    </ol>
+
+    <h4>Pentru însoțitor</h4>
+    <ol>
+      <li>Deschide emailul primit.</li>
+      <li>Accesează linkul/tokenul de invitație.</li>
+      <li>Dacă este necesar, autentifică-te în aplicație.</li>
+      <li>Confirmă acceptarea invitației.</li>
+    </ol>
+
+    <h2>7. Utilizare pe roluri (detaliat)</h2>
+
+    <h3>7.1 Pacient</h3>
+    <h4>7.1.1 Vizualizare documente</h4>
+    <ul>
+      <li>În Home, lista afișează documentele tale.</li>
+      <li>Apasă pe document pentru deschidere PDF.</li>
+    </ul>
+
+    <h4>7.1.2 Încărcare document PDF</h4>
+    <ol>
+      <li>Apasă butonul de încărcare (Add PDF/Upload).</li>
+      <li>Selectează fișierul PDF din dispozitiv.</li>
+      <li>Așteaptă confirmarea de succes.</li>
+    </ol>
+
+    <h4>7.1.3 Gestionare însoțitori</h4>
+    <ol>
+      <li>Intră în <strong>Însoțitorii mei</strong>.</li>
+      <li>Vezi lista însoțitorilor asociați.</li>
+      <li>Poți elimina accesul pentru un însoțitor.</li>
+    </ol>
+
+    <h4>7.1.4 Mesaje</h4>
+    <ul>
+      <li>Apasă iconița de chat din bara de sus.</li>
+      <li>Scrie și trimite mesaje.</li>
+      <li>Badge-ul de notificări indică mesaje necitite.</li>
+    </ul>
+
+    <h3>7.2 Însoțitor</h3>
+    <h4>7.2.1 Asociere cu pacient</h4>
+    <ul>
+      <li>Prin cod numeric de 6 cifre, sau</li>
+      <li>Prin invitație email/token.</li>
+    </ul>
+
+    <h4>7.2.2 Vizualizare documente pacient</h4>
+    <ul>
+      <li>După asociere, documentele pacientului apar în listă.</li>
+      <li>Poți deschide PDF-urile pentru consultare.</li>
+    </ul>
+
+    <h4>7.2.3 Gestionare pacienți asociați</h4>
+    <ol>
+      <li>Intră în <strong>Pacienții mei</strong>.</li>
+      <li>Vezi pacienții asociați.</li>
+      <li>Poți întrerupe asocierea, dacă este necesar.</li>
+    </ol>
+
+    <h4>7.2.4 Mesaje pe mai mulți pacienți</h4>
+    <ul>
+      <li>
+        Dacă ai mai mulți pacienți, aplicația afișează lista conversațiilor.
+      </li>
+      <li>
+        Numărul total de mesaje necitite este afișat în partea de sus (badge
+        chat).
+      </li>
+      <li>Poți intra în fiecare conversație separat.</li>
+    </ul>
+
+    <h3>7.3 Medic</h3>
+    <h4>7.3.1 Dashboard medic</h4>
+    <p>Ecranul are de regulă tab-uri pentru:</p>
+    <ul>
+      <li>Pacienți</li>
+      <li>Documente</li>
+      <li>Mesaje</li>
+    </ul>
+
+    <h4>7.3.2 Căutare și selectare pacient</h4>
+    <ol>
+      <li>Folosește bara de căutare (nume/email/CNP).</li>
+      <li>Selectează pacientul dorit din listă.</li>
+    </ol>
+
+    <h4>7.3.3 Încărcare PDF pe pacient</h4>
+    <ol>
+      <li>Selectează pacientul.</li>
+      <li>Apasă butonul de upload.</li>
+      <li>Alege PDF-ul și confirmă.</li>
+    </ol>
+
+    <h4>7.3.4 Chat medical</h4>
+    <ul>
+      <li>Poți comunica în conversația pacientului.</li>
+      <li>Badge-urile indică mesajele necitite.</li>
+    </ul>
+
+    <h3>7.4 Admin Spital</h3>
+    <h4>7.4.1 Gestionare utilizatori</h4>
+    <ol>
+      <li>Intră în tab-ul Utilizatori.</li>
+      <li>Creează utilizator nou (rol, date, CNP etc.).</li>
+      <li>Editează sau șterge utilizatori conform politicii interne.</li>
+    </ol>
+
+    <h4>7.4.2 Legare însoțitor-pacient</h4>
+    <ol>
+      <li>Deschide dialogul de asociere.</li>
+      <li>Selectează pacientul.</li>
+      <li>Selectează însoțitorul.</li>
+      <li>Confirmă legătura.</li>
+    </ol>
+
+    <h4>7.4.3 Tab documente</h4>
+    <ul>
+      <li>Poți consulta documentele disponibile în aria ta de administrare.</li>
+    </ul>
+
+    <h3>7.5 Global Admin</h3>
+    <h4>7.5.1 Management spitale</h4>
+    <ul>
+      <li>Adăugare spital</li>
+      <li>Editare spital</li>
+      <li>Ștergere spital</li>
+    </ul>
+
+    <h4>7.5.2 Management utilizatori global</h4>
+    <ul>
+      <li>Creare/actualizare/ștergere utilizatori pe toate rolurile.</li>
+      <li>Atribuire rol și spital în funcție de responsabilități.</li>
+    </ul>
+
+    <h2>8. Limbă și traduceri</h2>
+    <ol>
+      <li>Apasă selectorul de limbă din bara superioară.</li>
+      <li>Alege limba dorită.</li>
+      <li>Interfața se actualizează automat.</li>
+    </ol>
+
+    <h2>9. Erori frecvente și soluții</h2>
+    <h3>9.1 „Date de autentificare incorecte”</h3>
+    <ul>
+      <li>Verifică email și parolă;</li>
+      <li>Asigură-te că nu ai spații suplimentare.</li>
+    </ul>
+
+    <h3>9.2 „Contul nu este verificat”</h3>
+    <ul>
+      <li>Finalizează verificarea email (cod 6 cifre);</li>
+      <li>Folosește „Retrimite codul” dacă este necesar.</li>
+    </ul>
+
+    <h3>9.3 „Cod invalid sau expirat” / „Token invalid sau expirat”</h3>
+    <ul>
+      <li>Cere un cod/token nou de la pacient.</li>
+    </ul>
+
+    <h3>9.4 Nu apar documentele</h3>
+    <ul>
+      <li>Trage în jos pentru refresh;</li>
+      <li>Verifică dacă asocierea pacient-însoțitor este activă;</li>
+      <li>Verifică conexiunea la internet.</li>
+    </ul>
+
+    <h3>9.5 Probleme de conexiune</h3>
+    <ul>
+      <li>Asigură-te că serverul backend este pornit;</li>
+      <li>Verifică adresa backend configurată în aplicație;</li>
+      <li>Verifică dacă dispozitivul este în aceeași rețea.</li>
+    </ul>
+
+    <h2>10. Recomandări de utilizare sigură</h2>
+    <ul>
+      <li>Nu partaja parola contului cu alte persoane.</li>
+      <li>Partajează coduri/tokenuri doar cu persoana corectă.</li>
+      <li>Deconectează-te pe dispozitive partajate.</li>
+      <li>Actualizează aplicația periodic.</li>
+    </ul>
+
+    <h2>11. Checklist rapid pentru suport</h2>
+    <p>Când raportezi o problemă, trimite:</p>
+    <ul>
+      <li>rolul tău (pacient/însoțitor/medic/admin);</li>
+      <li>ecranul unde apare problema;</li>
+      <li>mesajul exact de eroare;</li>
+      <li>pașii făcuți înainte de eroare;</li>
+      <li>ora aproximativă când s-a produs.</li>
+    </ul>
+
+    <p>
+      <em
+        >Document creat pentru utilizare operațională și training
+        utilizatori.</em
+      >
+    </p>
+  </body>
+</html>
